@@ -2187,10 +2187,7 @@ select.f-input option { background:var(--white); }
     </div>
 
     <!-- Auth Tabs -->
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchAuthTab('login')" id="tabLogin" data-i18n="auth.tabLogin">Вхід</button>
-      <button class="auth-tab" onclick="switchAuthTab('register')" id="tabRegister" data-i18n="auth.tabRegister">Реєстрація</button>
-    </div>
+
 
     <!-- ══ LOGIN PANEL ══ -->
     <div class="auth-panel active" id="panelLogin">
@@ -2220,54 +2217,7 @@ select.f-input option { background:var(--white); }
 
     </div>
 
-    <!-- ══ REGISTER PANEL ══ -->
-    <div class="auth-panel" id="panelRegister">
-
-      <!-- Google Register -->
-      <div style="display:flex;justify-content:center;margin-bottom:4px;">
-        <div id="googleBtnReg"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
-        <div style="flex:1;height:1px;background:var(--border-color);"></div>
-        <span style="font-size:12px;color:var(--text-muted);">або заповніть форму</span>
-        <div style="flex:1;height:1px;background:var(--border-color);"></div>
-      </div>
-
-      <!-- Register Form -->
-      <div id="registerForm">
-        <div class="form-group">
-          <label>Ваше ім'я</label>
-          <input type="text" id="regName" placeholder="Іван Петренко" autocomplete="name">
-        </div>
-        <div class="form-group">
-          <label>Електронна пошта</label>
-          <input type="email" id="regEmail" placeholder="your@email.com" autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label>Пароль</label>
-          <input type="password" id="regPass" placeholder="Мінімум 6 символів" oninput="checkPassStrength(this.value)">
-          <div class="pass-strength"><div class="pass-strength-bar" id="passBar"></div></div>
-          <div class="pass-hint" id="passHint" style="color:var(--text-muted);"></div>
-        </div>
-        <div class="form-group">
-          <label>Підтвердіть пароль</label>
-          <input type="password" id="regPass2" placeholder="Повторіть пароль" onkeydown="if(event.key==='Enter')doRegister()">
-        </div>
-        <button class="btn-primary" onclick="doRegister()"><span style="font-size:18px;font-weight:300;margin-right:4px;">+</span> Створити акаунт</button>
-        <div class="login-err" id="registerErr"></div>
-      </div>
-
-      <!-- Success state -->
-      <div id="registerSuccess" class="register-success" style="display:none;">
-        <div class="rs-icon">🎉</div>
-        <h3>Акаунт створено!</h3>
-        <p>Ласкаво просимо до Bolt Food CRM.<br>Ваш акаунт готовий до роботи.</p>
-        <button class="btn-primary" style="margin-top:16px;width:100%;" onclick="switchAuthTab('login')">Увійти →</button>
-      </div>
-
     </div>
-
-  </div>
 </div>
 
 <!-- MAIN APP -->
@@ -3147,19 +3097,10 @@ const TRANSLATIONS = {
     'nav.logout':     'Вийти',
 
     // ── Login / Register screen ──
-    'auth.tabLogin':       'Вхід',
-    'auth.tabRegister':    'Реєстрація',
     'auth.subtitle':       'Sales Manager Portal',
     'auth.email':          'Email',
     'auth.password':       'Пароль',
     'auth.name':           'Імʼя',
-    'auth.confirmPass':    'Повторіть пароль',
-    'auth.btnLogin':       'Увійти',
-    'auth.btnRegister':    'Зареєструватись',
-    'auth.or':             'або',
-    'auth.registerSuccess': 'Акаунт створено! Тепер увійдіть.',
-    'auth.demoTitle':      'Режим демо',
-    'auth.demoDesc':       'Ви використовуєте тестовий акаунт. Всі зміни буде видалено при виході.',
 
     // ── Home page ──
     'home.greetingMorning': 'Доброго ранку',
@@ -3330,19 +3271,10 @@ const TRANSLATIONS = {
     'nav.logout':     'Log out',
 
     // ── Login / Register screen ──
-    'auth.tabLogin':       'Sign in',
-    'auth.tabRegister':    'Sign up',
     'auth.subtitle':       'Sales Manager Portal',
     'auth.email':          'Email',
     'auth.password':       'Password',
     'auth.name':           'Name',
-    'auth.confirmPass':    'Confirm password',
-    'auth.btnLogin':       'Sign in',
-    'auth.btnRegister':    'Create account',
-    'auth.or':             'or',
-    'auth.registerSuccess':'Account created! Please sign in.',
-    'auth.demoTitle':      'Demo mode',
-    'auth.demoDesc':       'You are using a test account. All changes will be discarded when you log out.',
 
     // ── Home page ──
     'home.greetingMorning': 'Good morning',
@@ -3648,9 +3580,11 @@ function doLogout() {
   hideDemoBanner();
   // Re-render Google buttons
   setTimeout(initGoogleAuth, 100);
-  document.getElementById('registerForm').style.display = 'block';
-  document.getElementById('registerSuccess').style.display = 'none';
-  switchAuthTab('login');
+  // Очищаємо поля форми входу на випадок, якщо там щось залишилось
+  var loginEmailEl = document.getElementById('loginEmail');
+  var loginPassEl  = document.getElementById('loginPass');
+  if (loginEmailEl) loginEmailEl.value = '';
+  if (loginPassEl)  loginPassEl.value = '';
 }
 
 // Init handled by DOMContentLoaded below
@@ -6739,81 +6673,8 @@ function removeContact(contactId) {
 // ============================================================
 // REGISTRATION & AUTH TABS
 // ============================================================
-function switchAuthTab(tab) {
-  document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
-  document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
-  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
-  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
 
-  // Reset errors
-  document.getElementById('loginErr').style.display = 'none';
-  const regErr = document.getElementById('registerErr');
-  if (regErr) { regErr.style.display = 'none'; regErr.textContent = ''; }
 
-  // Render Google button for register tab
-  if (tab === 'register') {
-    setTimeout(function() { initGoogleAuthBtn('googleBtnReg'); }, 50);
-  }
-}
-
-function checkPassStrength(val) {
-  const bar = document.getElementById('passBar');
-  const hint = document.getElementById('passHint');
-  if (!bar) return;
-  let score = 0;
-  let msg = '';
-  let color = '';
-  if (val.length >= 6) score++;
-  if (val.length >= 10) score++;
-  if (/[A-Z]/.test(val)) score++;
-  if (/[0-9]/.test(val)) score++;
-  if (/[^A-Za-z0-9]/.test(val)) score++;
-
-  if (val.length === 0) { bar.style.width = '0%'; if(hint) hint.textContent = ''; return; }
-  if (score <= 1) { color = '#FF5E5E'; msg = 'Слабкий пароль'; }
-  else if (score <= 3) { color = '#F5C542'; msg = 'Середній пароль'; }
-  else { color = '#2DDE98'; msg = 'Надійний пароль'; }
-
-  bar.style.width = (score * 20) + '%';
-  bar.style.background = color;
-  if (hint) { hint.textContent = msg; hint.style.color = color; }
-}
-
-function doRegister() {
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim().toLowerCase();
-  const pass = document.getElementById('regPass').value;
-  const pass2 = document.getElementById('regPass2').value;
-  const errEl = document.getElementById('registerErr');
-
-  function showRegErr(msg) {
-    errEl.textContent = msg;
-    errEl.style.display = 'block';
-  }
-
-  if (!name) { showRegErr("Введіть ваше ім'я"); return; }
-  if (!email || !email.includes('@')) { showRegErr('Введіть коректний email'); return; }
-  if (pass.length < 6) { showRegErr('Пароль має бути мінімум 6 символів'); return; }
-  if (pass !== pass2) { showRegErr('Паролі не співпадають'); return; }
-
-  // Check email not taken
-  const users = getUsers();
-  const exists = users.find(function(u) { return u.email && u.email.toLowerCase() === email; });
-  if (exists) { showRegErr('Цей email вже зареєстрований'); return; }
-
-  // Save new user
-  const existing = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  existing.push({ email: email, name: name, pass: pass });
-  localStorage.setItem(USERS_KEY, JSON.stringify(existing));
-
-  // Show success
-  document.getElementById('registerForm').style.display = 'none';
-  document.getElementById('registerSuccess').style.display = 'block';
-
-  // Pre-fill login form
-  document.getElementById('loginEmail').value = email;
-  document.getElementById('loginPass').value = pass;
-}
 
 // ============================================================
 // GOOGLE AUTH
@@ -6843,7 +6704,7 @@ function initGoogleAuthBtn(btnId) {
     theme: isDark ? 'filled_black' : 'outline',
     size: 'large',
     width: 340,
-    text: btnId === 'googleBtnReg' ? 'signup_with' : 'signin_with_google',
+    text: 'signin_with_google',
     shape: 'rectangular',
     logo_alignment: 'center',
   });

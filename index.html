@@ -9,6 +9,8 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -2169,6 +2171,244 @@ select.f-input option { background:var(--white); }
 .locs { font-size:12px; color:var(--text-secondary); }
 .divider { height:1px; background:var(--border-color); margin:20px 0; }
 .actions-row { display:flex; gap:10px; justify-content:flex-end; margin-bottom:20px; }
+
+/* ══════════════════════════════════════════════════════════════
+   TOOLS PAGE — калькулятор потенціалу партнера
+   ══════════════════════════════════════════════════════════════ */
+.tools-hub-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+  gap:16px; margin-bottom:24px;
+}
+.tool-hub-card {
+  background:var(--white); border:1px solid var(--border-color);
+  border-radius:var(--radius); padding:22px; cursor:pointer;
+  transition:all 0.2s; box-shadow:var(--shadow);
+  display:flex; flex-direction:column; gap:12px;
+  position:relative; overflow:hidden;
+}
+.tool-hub-card:hover {
+  border-color:var(--bolt-green); transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(45,222,152,0.12);
+}
+.tool-hub-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--bolt-green); opacity:0; transition:opacity 0.2s;
+}
+.tool-hub-card:hover::before { opacity:1; }
+.tool-hub-icon {
+  width:46px; height:46px; border-radius:12px;
+  background:var(--bolt-green-dim); color:var(--bolt-green);
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; flex-shrink:0;
+}
+.tool-hub-title { font-size:15px; font-weight:700; color:var(--bolt-dark); }
+.tool-hub-desc { font-size:12.5px; color:var(--text-secondary); line-height:1.55; }
+.tool-hub-cta {
+  margin-top:auto; font-size:12px; font-weight:700;
+  color:var(--bolt-green); display:inline-flex; align-items:center; gap:4px;
+}
+
+/* Calculator layout */
+.calc-wrap { display:grid; grid-template-columns:400px 1fr; gap:20px; margin-top:4px; }
+.calc-back-btn {
+  background:none; border:none; cursor:pointer; color:var(--text-secondary);
+  font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+  display:inline-flex; align-items:center; gap:6px; padding:6px 0;
+  margin-bottom:14px; transition:color 0.15s;
+}
+.calc-back-btn:hover { color:var(--bolt-green); }
+
+.calc-inputs-card {
+  background:var(--white); border:1px solid var(--border-color);
+  border-radius:var(--radius); padding:22px;
+  box-shadow:var(--shadow); align-self:start;
+  position:sticky; top:20px;
+}
+.calc-inputs-title {
+  font-size:13px; font-weight:700; color:var(--text-secondary);
+  text-transform:uppercase; letter-spacing:0.6px; margin-bottom:16px;
+  padding-bottom:12px; border-bottom:1px solid var(--border-color);
+}
+.calc-group { margin-bottom:16px; }
+.calc-group:last-child { margin-bottom:0; }
+.calc-group-title {
+  font-size:11px; font-weight:700; color:var(--bolt-green);
+  text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+.calc-group-title::before {
+  content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--bolt-green); display:inline-block;
+}
+.calc-field { margin-bottom:10px; }
+.calc-field:last-child { margin-bottom:0; }
+.calc-field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.input-with-suffix {
+  position:relative; display:flex; align-items:center;
+}
+.input-with-suffix .f-input { padding-right:42px; }
+.input-suffix {
+  position:absolute; right:12px; font-size:12px; font-weight:600;
+  color:var(--text-muted); pointer-events:none;
+}
+.calc-hint {
+  font-size:11px; color:var(--text-muted); margin-top:5px; line-height:1.4;
+}
+.calc-hint.warn { color:var(--yellow); font-weight:600; }
+.calc-hint.err  { color:var(--red); font-weight:600; }
+
+.calc-actions { display:flex; gap:8px; margin-top:18px; padding-top:16px; border-top:1px solid var(--border-color); }
+.calc-actions .btn { flex:1; }
+
+/* Calculator results */
+.calc-results { display:flex; flex-direction:column; gap:18px; min-width:0; }
+.calc-partner-header {
+  background:linear-gradient(135deg, var(--bolt-green-dim) 0%, rgba(45,222,152,0.04) 100%);
+  border:1px solid rgba(45,222,152,0.2); border-radius:var(--radius);
+  padding:20px 24px; display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:12px;
+}
+.calc-partner-name { font-size:20px; font-weight:800; color:var(--bolt-dark); letter-spacing:-0.3px; }
+.calc-partner-sub { font-size:12px; color:var(--text-secondary); margin-top:3px; font-weight:500; }
+.calc-partner-locs {
+  background:var(--bolt-green); color:#fff;
+  padding:6px 14px; border-radius:100px;
+  font-size:12px; font-weight:700;
+  display:inline-flex; align-items:center; gap:6px;
+}
+
+.calc-section-title {
+  font-size:13px; font-weight:700; color:var(--text-secondary);
+  text-transform:uppercase; letter-spacing:0.6px; margin-bottom:12px;
+  padding-bottom:10px; border-bottom:1px solid var(--border-color);
+  display:flex; align-items:center; gap:8px;
+}
+.calc-section-title .csi {
+  width:22px; height:22px; border-radius:6px;
+  background:var(--bg-light); display:inline-flex;
+  align-items:center; justify-content:center; font-size:12px;
+}
+
+.calc-metric-grid {
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+  gap:12px;
+}
+.calc-metric {
+  background:var(--white); border:1px solid var(--border-color);
+  border-radius:var(--radius-sm); padding:14px 16px;
+  box-shadow:var(--shadow);
+}
+.calc-metric-label {
+  font-size:11px; color:var(--text-secondary); font-weight:600;
+  text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;
+  line-height:1.3;
+}
+.calc-metric-val {
+  font-size:22px; font-weight:800; color:var(--bolt-dark);
+  font-variant-numeric:tabular-nums; letter-spacing:-0.5px;
+}
+.calc-metric-sub {
+  font-size:11px; color:var(--text-muted); margin-top:3px; font-weight:500;
+}
+.calc-metric.accent { border-color:rgba(45,222,152,0.35); background:var(--bolt-green-dim); }
+.calc-metric.accent .calc-metric-val { color:var(--bolt-green); }
+.calc-metric.accent .calc-metric-label { color:var(--bolt-green); }
+.calc-metric.blue { border-left:3px solid var(--blue); }
+.calc-metric.purple { border-left:3px solid var(--purple); }
+.calc-metric.yellow { border-left:3px solid var(--yellow); }
+
+/* Hero metric — головний показник */
+.calc-hero {
+  background:linear-gradient(135deg, var(--bolt-green) 0%, #1FC084 100%);
+  border-radius:var(--radius); padding:24px 28px; color:#fff;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:20px;
+  box-shadow:0 8px 24px rgba(45,222,152,0.25);
+}
+.calc-hero-label {
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.8px; opacity:0.85; margin-bottom:6px;
+}
+.calc-hero-val {
+  font-size:36px; font-weight:800; letter-spacing:-1px;
+  font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.calc-hero-sub {
+  font-size:13px; opacity:0.92; margin-top:6px; font-weight:500;
+}
+.calc-hero-side { display:flex; gap:24px; flex-wrap:wrap; }
+.calc-hero-side .hs { text-align:right; }
+.calc-hero-side .hs-lbl { font-size:11px; opacity:0.85; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
+.calc-hero-side .hs-val { font-size:20px; font-weight:800; margin-top:3px; font-variant-numeric:tabular-nums; }
+
+.calc-card-block {
+  background:var(--white); border:1px solid var(--border-color);
+  border-radius:var(--radius); padding:20px 22px; box-shadow:var(--shadow);
+}
+
+/* Multiapp toggle */
+.multiapp-toggle {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; background:var(--bg-light);
+  border:1px solid var(--border-color); border-radius:var(--radius-sm);
+}
+.multiapp-toggle label { font-size:12.5px; font-weight:600; color:var(--text-main); cursor:pointer; flex:1; }
+.multiapp-toggle-switch {
+  width:38px; height:22px; background:var(--border-color);
+  border-radius:12px; position:relative; cursor:pointer;
+  transition:background 0.2s; flex-shrink:0;
+}
+.multiapp-toggle-switch::after {
+  content:''; position:absolute; top:3px; left:3px;
+  width:16px; height:16px; border-radius:50%; background:#fff;
+  transition:transform 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2);
+}
+.multiapp-toggle-switch.on { background:var(--bolt-green); }
+.multiapp-toggle-switch.on::after { transform:translateX(16px); }
+
+/* Comparison bar (Bolt vs Competitor) */
+.comp-bar { display:flex; flex-direction:column; gap:10px; }
+.comp-bar-label {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:12px; margin-bottom:5px;
+}
+.comp-bar-label .cbl-name { font-weight:600; color:var(--text-main); }
+.comp-bar-label .cbl-val { font-weight:700; color:var(--bolt-dark); font-variant-numeric:tabular-nums; }
+.comp-bar-track {
+  height:10px; background:var(--bg-light); border-radius:6px;
+  overflow:hidden; border:1px solid var(--border-color);
+}
+.comp-bar-fill {
+  height:100%; border-radius:6px; transition:width 0.4s ease;
+}
+.comp-bar-fill.bolt { background:linear-gradient(90deg, var(--bolt-green), #1FC084); }
+.comp-bar-fill.comp { background:linear-gradient(90deg, var(--yellow), #E0A82F); }
+.comp-bar-fill.other{ background:var(--text-muted); }
+
+.calc-empty-state {
+  text-align:center; padding:60px 20px; color:var(--text-muted);
+  background:var(--white); border:1px dashed var(--border-color); border-radius:var(--radius);
+}
+.calc-empty-state-icon { font-size:42px; margin-bottom:14px; opacity:0.4; }
+
+@media (max-width: 960px) {
+  .calc-wrap { grid-template-columns:1fr; }
+  .calc-inputs-card { position:static; }
+}
+
+/* Dark mode overrides */
+body.dark .tool-hub-card { background:#161621; border-color:#252535; }
+body.dark .calc-inputs-card { background:#161621; border-color:#252535; }
+body.dark .calc-metric { background:#161621; border-color:#252535; }
+body.dark .calc-card-block { background:#161621; border-color:#252535; }
+body.dark .multiapp-toggle { background:#0D0D14; border-color:#252535; }
+body.dark .comp-bar-track { background:#0D0D14; border-color:#252535; }
+body.dark .calc-partner-header {
+  background:linear-gradient(135deg, rgba(45,222,152,0.12) 0%, rgba(45,222,152,0.03) 100%);
+  border-color:rgba(45,222,152,0.25);
+}
+body.dark .calc-empty-state { background:#161621; border-color:#252535; }
+body.dark .calc-section-title .csi { background:#0D0D14; }
 </style>
 </head>
 <body>
@@ -2185,9 +2425,6 @@ select.f-input option { background:var(--white); }
         <span data-i18n="auth.subtitle">Sales Manager Portal</span>
       </div>
     </div>
-
-    <!-- Auth Tabs -->
-
 
     <!-- ══ LOGIN PANEL ══ -->
     <div class="auth-panel active" id="panelLogin">
@@ -2213,11 +2450,9 @@ select.f-input option { background:var(--white); }
       </div>
       <button class="btn-primary" onclick="doLogin()">Увійти →</button>
       <div class="login-err" id="loginErr">Невірний email або пароль</div>
-
-
     </div>
 
-    </div>
+  </div>
 </div>
 
 <!-- MAIN APP -->
@@ -2516,19 +2751,152 @@ select.f-input option { background:var(--white); }
 
     <!-- TOOLS PAGE -->
     <div class="page" id="page-tools">
-      <div class="page-header">
-        <div>
-          <h1>Інструменти</h1>
-          <p>Додаткові можливості для роботи з партнерами</p>
+
+      <!-- HUB VIEW: список інструментів -->
+      <div id="toolsHubView">
+        <div class="page-header">
+          <div>
+            <h1>Інструменти</h1>
+            <p>Калькулятори та робочі утиліти для менеджерів</p>
+          </div>
+        </div>
+
+        <div class="tools-hub-grid">
+          <div class="tool-hub-card" onclick="openTool('potential')">
+            <div class="tool-hub-icon">📊</div>
+            <div class="tool-hub-title">Калькулятор потенціалу партнера</div>
+            <div class="tool-hub-desc">Оцінка очікуваних замовлень та GMV партнера на Bolt Food на основі даних про ринок та конкурента у місті.</div>
+            <div class="tool-hub-cta">Відкрити →</div>
+          </div>
+          <div class="tool-hub-card" style="opacity:0.55;cursor:not-allowed;" onclick="showToast('Скоро', 'success')">
+            <div class="tool-hub-icon" style="background:rgba(163,116,255,0.1);color:var(--purple);">💰</div>
+            <div class="tool-hub-title">Калькулятор комісії</div>
+            <div class="tool-hub-desc">Розрахунок тестової та постійної комісії партнера з урахуванням обороту і періоду.</div>
+            <div class="tool-hub-cta" style="color:var(--text-muted);">Скоро</div>
+          </div>
+          <div class="tool-hub-card" style="opacity:0.55;cursor:not-allowed;" onclick="showToast('Скоро', 'success')">
+            <div class="tool-hub-icon" style="background:rgba(94,158,255,0.1);color:var(--blue);">🧾</div>
+            <div class="tool-hub-title">Генератор оферу</div>
+            <div class="tool-hub-desc">Формування пропозиції партнеру з умовами співпраці та розрахованим потенціалом.</div>
+            <div class="tool-hub-cta" style="color:var(--text-muted);">Скоро</div>
+          </div>
         </div>
       </div>
-      <div class="tools-empty-state">
-        <div class="tools-empty-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+
+      <!-- POTENTIAL CALCULATOR VIEW -->
+      <div id="toolPotentialView" style="display:none;">
+        <button class="calc-back-btn" onclick="closeTool()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          До списку інструментів
+        </button>
+
+        <div class="page-header" style="margin-bottom:18px;">
+          <div>
+            <h1>Калькулятор потенціалу партнера</h1>
+            <p>Розрахунок очікуваних замовлень та GMV на платформі Bolt Food</p>
+          </div>
         </div>
-        <div class="tools-empty-title">Розділ у розробці</div>
-        <div class="tools-empty-desc">Тут незабаром з'являться інструменти для роботи.<br>Слідкуйте за оновленнями.</div>
+
+        <div class="calc-wrap">
+
+          <!-- LEFT: INPUTS -->
+          <div class="calc-inputs-card">
+            <div class="calc-inputs-title">Вхідні дані</div>
+
+            <div class="calc-group">
+              <div class="calc-group-title">Партнер</div>
+              <div class="calc-field">
+                <div class="f-label">Назва партнера</div>
+                <input class="f-input" id="cpName" placeholder="Наприклад: Пузата хата" oninput="calcRender()">
+              </div>
+              <div class="calc-field">
+                <div class="f-label">Кількість локацій</div>
+                <input class="f-input" id="cpLocs" type="number" min="1" value="1" oninput="calcRender()">
+              </div>
+            </div>
+
+            <div class="calc-group">
+              <div class="calc-group-title">Частки ринку у місті</div>
+              <div class="calc-field-row">
+                <div class="calc-field">
+                  <div class="f-label">Bolt Food</div>
+                  <div class="input-with-suffix">
+                    <input class="f-input" id="cpBoltShare" type="number" min="0" max="100" step="0.1" value="27" oninput="calcRender()">
+                    <span class="input-suffix">%</span>
+                  </div>
+                </div>
+                <div class="calc-field">
+                  <div class="f-label">Конкурент</div>
+                  <div class="input-with-suffix">
+                    <input class="f-input" id="cpCompShare" type="number" min="0" max="100" step="0.1" value="73" oninput="calcRender()">
+                    <span class="input-suffix">%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="calc-hint" id="cpShareHint">Сума двох часток має бути ≤ 100%. Якщо є ще інші гравці (Wolt тощо) — різниця піде в них.</div>
+            </div>
+
+            <div class="calc-group">
+              <div class="calc-group-title">Партнер на платформі конкурента</div>
+              <div class="calc-field">
+                <div class="f-label">Замовлень / місяць <span style="color:var(--text-muted);font-weight:500;">(по всіх локаціях партнера)</span></div>
+                <input class="f-input" id="cpCompOrders" type="number" min="0" step="1" placeholder="Наприклад: 1649" oninput="calcRender()">
+              </div>
+              <div class="calc-field">
+                <div class="f-label">Середній чек на платформі конкурента</div>
+                <div class="input-with-suffix">
+                  <input class="f-input" id="cpCompAOV" type="number" min="0" step="0.01" placeholder="Наприклад: 16.67" oninput="calcRender()">
+                  <span class="input-suffix">€/$</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="calc-group">
+              <div class="calc-group-title">Bolt Food</div>
+              <div class="calc-field">
+                <div class="f-label">Середній чек на платформі Bolt Food</div>
+                <div class="input-with-suffix">
+                  <input class="f-input" id="cpBoltAOV" type="number" min="0" step="0.01" placeholder="Наприклад: 16.67" oninput="calcRender()">
+                  <span class="input-suffix">€/$</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="calc-group">
+              <div class="calc-group-title">Multiapp-ефект <span style="color:var(--text-muted);font-weight:500;text-transform:none;letter-spacing:0;">(опційно)</span></div>
+              <div class="multiapp-toggle">
+                <label onclick="calcToggleMultiapp()">📱 Врахувати ефект Multiapp</label>
+                <div class="multiapp-toggle-switch" id="cpMultiappSwitch" onclick="calcToggleMultiapp()"></div>
+              </div>
+              <div class="calc-field" id="cpMultiappPctField" style="display:none; margin-top:10px;">
+                <div class="f-label">Коефіцієнт росту замовлень</div>
+                <div class="input-with-suffix">
+                  <input class="f-input" id="cpMultiappPct" type="number" min="0" max="300" step="1" value="37" oninput="calcSetMultiappPct(this.value)">
+                  <span class="input-suffix">%</span>
+                </div>
+                <div class="calc-hint">Кур'єри та клієнти, що працюють у кількох додатках одночасно, генерують на стільки % більше замовлень. За замовчуванням +37% (з прикладу).</div>
+              </div>
+            </div>
+
+            <div class="calc-actions">
+              <button class="btn btn-ghost" onclick="calcReset()">Скинути</button>
+              <button class="btn btn-ghost" onclick="calcExportPDF()" id="cpPdfBtn" style="color:var(--red);border-color:rgba(255,94,94,0.3);">📄 PDF</button>
+              <button class="btn btn-green" onclick="calcSaveToPartner()" style="flex:1;">💾 Зберегти</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: RESULTS -->
+          <div class="calc-results" id="calcResults">
+            <div class="calc-empty-state">
+              <div class="calc-empty-state-icon">📊</div>
+              <p><strong>Заповніть дані зліва</strong></p>
+              <small>Потрібні мінімум: кількість замовлень конкурента, середні чеки та частки ринку</small>
+            </div>
+          </div>
+
+        </div>
       </div>
+
     </div>
 
     <!-- ANALYTICS PAGE -->
@@ -3097,10 +3465,19 @@ const TRANSLATIONS = {
     'nav.logout':     'Вийти',
 
     // ── Login / Register screen ──
+    'auth.tabLogin':       'Вхід',
+    'auth.tabRegister':    'Реєстрація',
     'auth.subtitle':       'Sales Manager Portal',
     'auth.email':          'Email',
     'auth.password':       'Пароль',
     'auth.name':           'Імʼя',
+    'auth.confirmPass':    'Повторіть пароль',
+    'auth.btnLogin':       'Увійти',
+    'auth.btnRegister':    'Зареєструватись',
+    'auth.or':             'або',
+    'auth.registerSuccess': 'Акаунт створено! Тепер увійдіть.',
+    'auth.demoTitle':      'Режим демо',
+    'auth.demoDesc':       'Ви використовуєте тестовий акаунт. Всі зміни буде видалено при виході.',
 
     // ── Home page ──
     'home.greetingMorning': 'Доброго ранку',
@@ -3271,10 +3648,19 @@ const TRANSLATIONS = {
     'nav.logout':     'Log out',
 
     // ── Login / Register screen ──
+    'auth.tabLogin':       'Sign in',
+    'auth.tabRegister':    'Sign up',
     'auth.subtitle':       'Sales Manager Portal',
     'auth.email':          'Email',
     'auth.password':       'Password',
     'auth.name':           'Name',
+    'auth.confirmPass':    'Confirm password',
+    'auth.btnLogin':       'Sign in',
+    'auth.btnRegister':    'Create account',
+    'auth.or':             'or',
+    'auth.registerSuccess':'Account created! Please sign in.',
+    'auth.demoTitle':      'Demo mode',
+    'auth.demoDesc':       'You are using a test account. All changes will be discarded when you log out.',
 
     // ── Home page ──
     'home.greetingMorning': 'Good morning',
@@ -3580,11 +3966,9 @@ function doLogout() {
   hideDemoBanner();
   // Re-render Google buttons
   setTimeout(initGoogleAuth, 100);
-  // Очищаємо поля форми входу на випадок, якщо там щось залишилось
-  var loginEmailEl = document.getElementById('loginEmail');
-  var loginPassEl  = document.getElementById('loginPass');
-  if (loginEmailEl) loginEmailEl.value = '';
-  if (loginPassEl)  loginPassEl.value = '';
+  const _rf = document.getElementById('registerForm'); if (_rf) _rf.style.display = 'block';
+  const _rs = document.getElementById('registerSuccess'); if (_rs) _rs.style.display = 'none';
+  if (typeof switchAuthTab === 'function') switchAuthTab('login');
 }
 
 // Init handled by DOMContentLoaded below
@@ -3668,7 +4052,7 @@ function showPage(page) {
   if (page === 'partners') renderPartners();
   if (page === 'analytics') renderAnalytics();
   if (page === 'settings') renderSettings();
-  // tools page has no render fn yet — placeholder
+  if (page === 'tools') renderTools();
   if (page === 'today') { setTimeout(function(){ renderDashActivityChart(getPartners()); },50); }
 }
 
@@ -5575,9 +5959,7 @@ function getLegendColor(){ return document.body.classList.contains('dark') ? '#8
 
 // Ключі localStorage для зберігання стану
 var REPORTS_ORDER_KEY   = 'bfcrm_reports_order';   // масив id у потрібному порядку
-var REPORTS_HIDDEN_KEY  = 'bfcrm_reports_hidden';
-
-  // масив id прихованих звітів
+var REPORTS_HIDDEN_KEY  = 'bfcrm_reports_hidden';  // масив id прихованих звітів
 
 // Дефолтний порядок звітів — якщо користувач нічого не переставляв.
 // Має відповідати порядку в HTML щоб все працювало "з коробки".
@@ -6142,6 +6524,429 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 // ============================================================
+// TOOLS PAGE — калькулятор потенціалу партнера
+// ============================================================
+let calcCurrentTool = null;
+let calcMultiappOn = false;
+let calcMultiappPct = 37;
+
+function renderTools() {
+  if (calcCurrentTool === 'potential') {
+    document.getElementById('toolsHubView').style.display = 'none';
+    document.getElementById('toolPotentialView').style.display = 'block';
+    calcRender();
+  } else {
+    document.getElementById('toolsHubView').style.display = 'block';
+    document.getElementById('toolPotentialView').style.display = 'none';
+  }
+}
+
+function openTool(name) {
+  calcCurrentTool = name;
+  if (name === 'potential') {
+    document.getElementById('toolsHubView').style.display = 'none';
+    document.getElementById('toolPotentialView').style.display = 'block';
+    calcRender();
+  }
+}
+
+function closeTool() {
+  calcCurrentTool = null;
+  document.getElementById('toolsHubView').style.display = 'block';
+  document.getElementById('toolPotentialView').style.display = 'none';
+}
+
+function calcFmt(n, digits) {
+  if (n === null || n === undefined || isNaN(n) || !isFinite(n)) return '—';
+  const d = (digits === undefined) ? 0 : digits;
+  return n.toLocaleString('uk-UA', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function calcFmtMoney(n) {
+  if (n === null || n === undefined || isNaN(n) || !isFinite(n)) return '—';
+  return n.toLocaleString('uk-UA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function calcFmtPct(n) {
+  if (n === null || n === undefined || isNaN(n) || !isFinite(n)) return '—';
+  return (n * 100).toLocaleString('uk-UA', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+}
+
+function calcReadInputs() {
+  return {
+    name: (document.getElementById('cpName').value || '').trim(),
+    locs: Math.max(1, parseInt(document.getElementById('cpLocs').value) || 1),
+    boltShare: parseFloat(document.getElementById('cpBoltShare').value) || 0,
+    compShare: parseFloat(document.getElementById('cpCompShare').value) || 0,
+    compOrders: parseFloat(document.getElementById('cpCompOrders').value) || 0,
+    compAOV: parseFloat(document.getElementById('cpCompAOV').value) || 0,
+    boltAOV: parseFloat(document.getElementById('cpBoltAOV').value) || 0,
+    multiapp: calcMultiappOn
+  };
+}
+
+function calcToggleMultiapp() {
+  calcMultiappOn = !calcMultiappOn;
+  const sw = document.getElementById('cpMultiappSwitch');
+  const pctField = document.getElementById('cpMultiappPctField');
+  if (sw) sw.classList.toggle('on', calcMultiappOn);
+  if (pctField) pctField.style.display = calcMultiappOn ? 'block' : 'none';
+  calcRender();
+}
+function calcSetMultiappPct(v) {
+  const n = parseFloat(v);
+  if (!isNaN(n) && n >= 0 && n <= 300) calcMultiappPct = n;
+  calcRender();
+}
+
+function calcValidateShares(boltShare, compShare) {
+  const hintEl = document.getElementById('cpShareHint');
+  if (!hintEl) return;
+  const sum = boltShare + compShare;
+  hintEl.classList.remove('warn', 'err');
+  if (sum > 100.01) {
+    hintEl.classList.add('err');
+    hintEl.textContent = '⚠ Сума часток ' + calcFmt(sum, 1) + '% > 100%. Перевірте дані.';
+  } else if (sum <= 0) {
+    hintEl.textContent = 'Введіть частки ринку. Bolt Food і конкурент.';
+  } else if (sum < 99.99) {
+    hintEl.classList.add('warn');
+    hintEl.textContent = 'Сума ' + calcFmt(sum, 1) + '%. Решта ' + calcFmt(100-sum, 1) + '% — інші гравці (Wolt, Rocket тощо).';
+  } else {
+    hintEl.textContent = '✓ Bolt Food і конкурент разом покривають весь ринок.';
+  }
+}
+
+function calcCompute(inp) {
+  const { locs, boltShare, compShare, compOrders, compAOV, boltAOV, multiapp } = inp;
+  const shareDenom = boltShare + compShare;
+  const boltCoef = shareDenom > 0 ? (boltShare / shareDenom) : 0;
+
+  const c_gmv_month = compOrders * compAOV;
+  const c_gmv_year  = c_gmv_month * 12;
+  const c_orders_year = compOrders * 12;
+  const c_orders_per_loc_month = locs > 0 ? compOrders / locs : 0;
+  const c_orders_per_loc_day   = c_orders_per_loc_month / 30;
+  const c_orders_per_loc_year  = c_orders_per_loc_month * 12;
+  const c_gmv_per_loc_month    = c_orders_per_loc_month * compAOV;
+  const c_gmv_per_loc_year     = c_gmv_per_loc_month * 12;
+
+  let b_orders_per_loc_day   = c_orders_per_loc_day * boltCoef;
+  let b_orders_per_loc_month = b_orders_per_loc_day * 30;
+  let modelLabel = 'Базова модель';
+
+  if (multiapp) {
+    const mpCoef = 1 + (calcMultiappPct / 100);
+    const totalMultiappPerLocDay = c_orders_per_loc_day * mpCoef;
+    b_orders_per_loc_day = totalMultiappPerLocDay * boltCoef;
+    b_orders_per_loc_month = b_orders_per_loc_day * 30;
+    modelLabel = 'Multiapp-модель (+' + calcFmt(calcMultiappPct, 0) + '%)';
+  }
+
+  const b_orders_per_loc_year = b_orders_per_loc_month * 12;
+  const b_orders_month = b_orders_per_loc_month * locs;
+  const b_orders_year  = b_orders_month * 12;
+  const b_gmv_month    = b_orders_month * boltAOV;
+  const b_gmv_year     = b_gmv_month * 12;
+  const b_gmv_per_loc_month = b_orders_per_loc_month * boltAOV;
+
+  return {
+    boltCoef, modelLabel,
+    competitor: {
+      gmv_month: c_gmv_month, gmv_year: c_gmv_year,
+      orders_month: compOrders, orders_year: c_orders_year,
+      orders_per_loc_month: c_orders_per_loc_month,
+      orders_per_loc_day: c_orders_per_loc_day,
+      orders_per_loc_year: c_orders_per_loc_year,
+      gmv_per_loc_month: c_gmv_per_loc_month,
+      gmv_per_loc_year: c_gmv_per_loc_year
+    },
+    bolt: {
+      orders_per_loc_day: b_orders_per_loc_day,
+      orders_per_loc_month: b_orders_per_loc_month,
+      orders_per_loc_year: b_orders_per_loc_year,
+      orders_month: b_orders_month,
+      orders_year: b_orders_year,
+      gmv_month: b_gmv_month,
+      gmv_year: b_gmv_year,
+      gmv_per_loc_month: b_gmv_per_loc_month
+    }
+  };
+}
+
+function calcMetric(label, val, sub, cls) {
+  return '<div class="calc-metric ' + (cls || '') + '">'
+       + '<div class="calc-metric-label">' + label + '</div>'
+       + '<div class="calc-metric-val">' + val + '</div>'
+       + (sub ? '<div class="calc-metric-sub">' + sub + '</div>' : '')
+       + '</div>';
+}
+
+function calcPluralLocs(n) {
+  n = Math.abs(n) % 100;
+  const n1 = n % 10;
+  if (n > 10 && n < 20) return 'локацій';
+  if (n1 > 1 && n1 < 5) return 'локації';
+  if (n1 === 1) return 'локація';
+  return 'локацій';
+}
+
+function calcRender() {
+  const inp = calcReadInputs();
+  calcValidateShares(inp.boltShare, inp.compShare);
+
+  const box = document.getElementById('calcResults');
+  if (!box) return;
+
+  const hasMinData = inp.compOrders > 0 && inp.compAOV > 0 && inp.boltAOV > 0
+                     && (inp.boltShare + inp.compShare) > 0;
+  if (!hasMinData) {
+    box.innerHTML = '<div class="calc-empty-state">'
+      + '<div class="calc-empty-state-icon">📊</div>'
+      + '<p><strong>Заповніть дані зліва</strong></p>'
+      + '<small>Потрібні мінімум: кількість замовлень конкурента, середні чеки та частки ринку</small>'
+      + '</div>';
+    return;
+  }
+
+  const r = calcCompute(inp);
+  const partnerName = inp.name || 'Партнер';
+
+  const headerHtml = ''
+    + '<div class="calc-partner-header">'
+    + '  <div>'
+    + '    <div class="calc-partner-name">' + escHtml(partnerName) + '</div>'
+    + '    <div class="calc-partner-sub">Модель: ' + r.modelLabel
+    + '    &nbsp;·&nbsp; Коефіцієнт Bolt: ' + calcFmtPct(r.boltCoef) + '</div>'
+    + '  </div>'
+    + '  <div class="calc-partner-locs">📍 ' + calcFmt(inp.locs) + ' ' + calcPluralLocs(inp.locs) + '</div>'
+    + '</div>';
+
+  const heroHtml = ''
+    + '<div class="calc-hero">'
+    + '  <div>'
+    + '    <div class="calc-hero-label">Прогноз замовлень на Bolt Food / місяць</div>'
+    + '    <div class="calc-hero-val">' + calcFmt(r.bolt.orders_month) + '</div>'
+    + '    <div class="calc-hero-sub">' + calcFmt(r.bolt.orders_per_loc_day, 1) + ' замовлень / локацію / день &nbsp;·&nbsp; '
+    + calcFmt(r.bolt.orders_per_loc_month) + ' / локацію / місяць</div>'
+    + '  </div>'
+    + '  <div class="calc-hero-side">'
+    + '    <div class="hs"><div class="hs-lbl">GMV / місяць</div><div class="hs-val">' + calcFmtMoney(r.bolt.gmv_month) + '</div></div>'
+    + '    <div class="hs"><div class="hs-lbl">GMV / рік</div><div class="hs-val">' + calcFmtMoney(r.bolt.gmv_year) + '</div></div>'
+    + '  </div>'
+    + '</div>';
+
+  const otherShare = Math.max(0, 100 - inp.boltShare - inp.compShare);
+  const shareBarHtml = ''
+    + '<div class="calc-card-block">'
+    + '  <div class="calc-section-title"><span class="csi">🧭</span>Розподіл ринку у місті</div>'
+    + '  <div class="comp-bar">'
+    + '    <div class="comp-bar-row">'
+    + '      <div class="comp-bar-label"><span class="cbl-name">⚡ Bolt Food</span><span class="cbl-val">' + calcFmt(inp.boltShare, 1) + '%</span></div>'
+    + '      <div class="comp-bar-track"><div class="comp-bar-fill bolt" style="width:' + Math.min(100, inp.boltShare) + '%"></div></div>'
+    + '    </div>'
+    + '    <div class="comp-bar-row">'
+    + '      <div class="comp-bar-label"><span class="cbl-name">Конкурент</span><span class="cbl-val">' + calcFmt(inp.compShare, 1) + '%</span></div>'
+    + '      <div class="comp-bar-track"><div class="comp-bar-fill comp" style="width:' + Math.min(100, inp.compShare) + '%"></div></div>'
+    + '    </div>'
+    + (otherShare > 0.05
+        ? '    <div class="comp-bar-row">'
+          + '      <div class="comp-bar-label"><span class="cbl-name">Інші гравці</span><span class="cbl-val">' + calcFmt(otherShare, 1) + '%</span></div>'
+          + '      <div class="comp-bar-track"><div class="comp-bar-fill other" style="width:' + Math.min(100, otherShare) + '%"></div></div>'
+          + '    </div>'
+        : '')
+    + '  </div>'
+    + '</div>';
+
+  const boltBlockHtml = ''
+    + '<div class="calc-card-block">'
+    + '  <div class="calc-section-title"><span class="csi">⚡</span>Прогноз для партнера на Bolt Food</div>'
+    + '  <div class="calc-metric-grid">'
+    + calcMetric('Замовлень / день', calcFmt(r.bolt.orders_per_loc_day * inp.locs, 1), 'на ' + inp.locs + ' ' + calcPluralLocs(inp.locs), 'accent')
+    + calcMetric('Замовлень / місяць', calcFmt(r.bolt.orders_month), '', 'accent')
+    + calcMetric('Замовлень / рік', calcFmt(r.bolt.orders_year), '', '')
+    + calcMetric('На локацію / день', calcFmt(r.bolt.orders_per_loc_day, 1), '', '')
+    + calcMetric('На локацію / місяць', calcFmt(r.bolt.orders_per_loc_month), '', '')
+    + calcMetric('На локацію / рік', calcFmt(r.bolt.orders_per_loc_year), '', '')
+    + calcMetric('GMV / місяць', calcFmtMoney(r.bolt.gmv_month), 'партнер цілком', 'accent')
+    + calcMetric('GMV / рік', calcFmtMoney(r.bolt.gmv_year), 'партнер цілком', 'accent')
+    + calcMetric('GMV / локацію / місяць', calcFmtMoney(r.bolt.gmv_per_loc_month), '', '')
+    + '  </div>'
+    + '</div>';
+
+  const compBlockHtml = ''
+    + '<div class="calc-card-block">'
+    + '  <div class="calc-section-title"><span class="csi">📈</span>Результати партнера на платформі конкурента</div>'
+    + '  <div class="calc-metric-grid">'
+    + calcMetric('Замовлень / місяць', calcFmt(r.competitor.orders_month), 'по всіх локаціях', 'yellow')
+    + calcMetric('Замовлень / рік', calcFmt(r.competitor.orders_year), '', 'yellow')
+    + calcMetric('GMV / місяць', calcFmtMoney(r.competitor.gmv_month), '', 'yellow')
+    + calcMetric('GMV / рік', calcFmtMoney(r.competitor.gmv_year), '', 'yellow')
+    + calcMetric('На локацію / день', calcFmt(r.competitor.orders_per_loc_day, 1), '', 'yellow')
+    + calcMetric('На локацію / місяць', calcFmt(r.competitor.orders_per_loc_month), '', 'yellow')
+    + calcMetric('На локацію / рік', calcFmt(r.competitor.orders_per_loc_year), '', 'yellow')
+    + calcMetric('GMV / локацію / міс.', calcFmtMoney(r.competitor.gmv_per_loc_month), '', 'yellow')
+    + '  </div>'
+    + '</div>';
+
+  box.innerHTML = headerHtml + heroHtml + shareBarHtml + boltBlockHtml + compBlockHtml;
+}
+
+function calcReset() {
+  ['cpName','cpCompOrders','cpCompAOV','cpBoltAOV'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('cpLocs').value = 1;
+  document.getElementById('cpBoltShare').value = 27;
+  document.getElementById('cpCompShare').value = 73;
+  calcMultiappOn = false;
+  calcMultiappPct = 37;
+  const sw = document.getElementById('cpMultiappSwitch');
+  const pctField = document.getElementById('cpMultiappPctField');
+  const pctInp = document.getElementById('cpMultiappPct');
+  if (sw) sw.classList.remove('on');
+  if (pctField) pctField.style.display = 'none';
+  if (pctInp) pctInp.value = 37;
+  calcRender();
+  showToast('Форму очищено', 'success');
+}
+
+function calcSaveToPartner() {
+  const inp = calcReadInputs();
+  const hasMinData = inp.compOrders > 0 && inp.compAOV > 0 && inp.boltAOV > 0
+                     && (inp.boltShare + inp.compShare) > 0;
+  if (!hasMinData) { showToast('Спершу заповніть обов\'язкові поля', 'error'); return; }
+  if (!inp.name) { showToast('Введіть назву партнера', 'error'); return; }
+
+  const r = calcCompute(inp);
+  const partners = getPartners();
+  const nameLc = inp.name.toLowerCase();
+  let p = partners.find(pp => (pp.name || '').trim().toLowerCase() === nameLc);
+
+  const note = '📊 Розрахунок потенціалу (' + r.modelLabel + '):\n'
+             + '• Локацій: ' + inp.locs + '\n'
+             + '• У конкурента: ' + calcFmt(inp.compOrders) + ' зам/міс, AOV ' + calcFmt(inp.compAOV, 2) + '\n'
+             + '• Частки Bolt/Конкурент: ' + calcFmt(inp.boltShare, 1) + '% / ' + calcFmt(inp.compShare, 1) + '%\n'
+             + '• Прогноз Bolt: ' + calcFmt(r.bolt.orders_month) + ' зам/міс (' + calcFmt(r.bolt.orders_per_loc_day, 1) + '/лок/день)\n'
+             + '• GMV Bolt: ' + calcFmtMoney(r.bolt.gmv_month) + '/міс · ' + calcFmtMoney(r.bolt.gmv_year) + '/рік';
+
+  if (p) {
+    const acts = getActivities(p.id);
+    acts.push({
+      id: 'a_' + Date.now(),
+      note: note,
+      createdAt: new Date().toISOString(),
+      nextDate: ''
+    });
+    saveActivities(p.id, acts);
+    p.potential = {
+      inp: inp,
+      result: { boltCoef: r.boltCoef, modelLabel: r.modelLabel, bolt: r.bolt, competitor: r.competitor },
+      calculatedAt: new Date().toISOString()
+    };
+    p.updatedAt = new Date().toISOString();
+    savePartners(partners);
+    showToast('Розрахунок додано до партнера «' + p.name + '»', 'success');
+  } else {
+    if (confirm('Партнера «' + inp.name + '» немає в базі. Створити нового партнера з цим розрахунком?')) {
+      const id = 'p_' + Date.now();
+      const newPartner = {
+        id: id, city: '', name: inp.name,
+        locs: inp.locs, lpr: '', status: 'new',
+        comment: 'Створено з калькулятора потенціалу',
+        nextContact: '', week: getWeekLabel(),
+        createdAt: new Date().toISOString(),
+        potential: {
+          inp: inp,
+          result: { boltCoef: r.boltCoef, modelLabel: r.modelLabel, bolt: r.bolt, competitor: r.competitor },
+          calculatedAt: new Date().toISOString()
+        }
+      };
+      partners.push(newPartner);
+      savePartners(partners);
+      const acts = getActivities(id);
+      acts.push({ id: 'a_' + Date.now(), note: note, createdAt: new Date().toISOString(), nextDate: '' });
+      saveActivities(id, acts);
+      showToast('Партнера «' + inp.name + '» створено з розрахунком', 'success');
+    }
+  }
+}
+
+async function calcExportPDF() {
+  const inp = calcReadInputs();
+  const hasMinData = inp.compOrders > 0 && inp.compAOV > 0 && inp.boltAOV > 0
+                     && (inp.boltShare + inp.compShare) > 0;
+  if (!hasMinData) { showToast('Спершу заповніть обов\'язкові поля', 'error'); return; }
+
+  const resultsEl = document.getElementById('calcResults');
+  if (!resultsEl) return;
+  if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+    showToast('Бібліотеки PDF не завантажено. Перевірте з\'єднання.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('cpPdfBtn');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.innerHTML = '⏳ Готую...'; btn.disabled = true; }
+
+  const wasDark = document.body.classList.contains('dark');
+  if (wasDark) {
+    document.body.classList.remove('dark');
+    calcRender();
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  try {
+    const canvas = await html2canvas(resultsEl, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+      windowWidth: resultsEl.scrollWidth
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = 210, pageH = 297;
+    const margin = 10;
+    const imgW = pageW - margin * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    const imgData = canvas.toDataURL('image/png');
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.setTextColor(120);
+    const today = new Date().toLocaleDateString('uk-UA');
+    pdf.text('Bolt Food CRM — Калькулятор потенціалу партнера · ' + today, margin, 6);
+
+    let heightLeft = imgH;
+    let position = margin;
+    pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+    heightLeft -= (pageH - margin);
+
+    while (heightLeft > 0) {
+      position = margin - (imgH - heightLeft);
+      pdf.addPage();
+      pdf.setFontSize(9);
+      pdf.setTextColor(120);
+      pdf.text('Bolt Food CRM — Калькулятор потенціалу партнера · ' + today, margin, 6);
+      pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+      heightLeft -= (pageH - margin);
+    }
+
+    const partnerName = (inp.name || 'партнер').replace(/[^\wа-яА-ЯіІїЇєЄґҐ\-_]+/g, '_').slice(0, 40);
+    const date = new Date().toISOString().slice(0,10);
+    pdf.save('потенціал_' + partnerName + '_' + date + '.pdf');
+    showToast('PDF збережено ✓', 'success');
+  } catch (e) {
+    console.error('PDF export error:', e);
+    showToast('Помилка при створенні PDF', 'error');
+  } finally {
+    if (wasDark) {
+      document.body.classList.add('dark');
+      calcRender();
+    }
+    if (btn) { btn.innerHTML = orig; btn.disabled = false; }
+  }
+}
+
+// ============================================================
 // SETTINGS PAGE
 // ============================================================
 function renderSettings() {
@@ -6673,8 +7478,86 @@ function removeContact(contactId) {
 // ============================================================
 // REGISTRATION & AUTH TABS
 // ============================================================
+function switchAuthTab(tab) {
+  const pl = document.getElementById('panelLogin');
+  const pr = document.getElementById('panelRegister');
+  const tl = document.getElementById('tabLogin');
+  const tr = document.getElementById('tabRegister');
+  if (pl) pl.classList.toggle('active', tab === 'login');
+  if (pr) pr.classList.toggle('active', tab === 'register');
+  if (tl) tl.classList.toggle('active', tab === 'login');
+  if (tr) tr.classList.toggle('active', tab === 'register');
 
+  // Reset errors
+  const loginErr = document.getElementById('loginErr');
+  if (loginErr) loginErr.style.display = 'none';
+  const regErr = document.getElementById('registerErr');
+  if (regErr) { regErr.style.display = 'none'; regErr.textContent = ''; }
 
+  // Render Google button for register tab
+  if (tab === 'register') {
+    setTimeout(function() { if (document.getElementById('googleBtnReg')) initGoogleAuthBtn('googleBtnReg'); }, 50);
+  }
+}
+
+function checkPassStrength(val) {
+  const bar = document.getElementById('passBar');
+  const hint = document.getElementById('passHint');
+  if (!bar) return;
+  let score = 0;
+  let msg = '';
+  let color = '';
+  if (val.length >= 6) score++;
+  if (val.length >= 10) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+
+  if (val.length === 0) { bar.style.width = '0%'; if(hint) hint.textContent = ''; return; }
+  if (score <= 1) { color = '#FF5E5E'; msg = 'Слабкий пароль'; }
+  else if (score <= 3) { color = '#F5C542'; msg = 'Середній пароль'; }
+  else { color = '#2DDE98'; msg = 'Надійний пароль'; }
+
+  bar.style.width = (score * 20) + '%';
+  bar.style.background = color;
+  if (hint) { hint.textContent = msg; hint.style.color = color; }
+}
+
+function doRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  const errEl = document.getElementById('registerErr');
+
+  function showRegErr(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+
+  if (!name) { showRegErr("Введіть ваше ім'я"); return; }
+  if (!email || !email.includes('@')) { showRegErr('Введіть коректний email'); return; }
+  if (pass.length < 6) { showRegErr('Пароль має бути мінімум 6 символів'); return; }
+  if (pass !== pass2) { showRegErr('Паролі не співпадають'); return; }
+
+  // Check email not taken
+  const users = getUsers();
+  const exists = users.find(function(u) { return u.email && u.email.toLowerCase() === email; });
+  if (exists) { showRegErr('Цей email вже зареєстрований'); return; }
+
+  // Save new user
+  const existing = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  existing.push({ email: email, name: name, pass: pass });
+  localStorage.setItem(USERS_KEY, JSON.stringify(existing));
+
+  // Show success
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('registerSuccess').style.display = 'block';
+
+  // Pre-fill login form
+  document.getElementById('loginEmail').value = email;
+  document.getElementById('loginPass').value = pass;
+}
 
 // ============================================================
 // GOOGLE AUTH
@@ -6704,7 +7587,7 @@ function initGoogleAuthBtn(btnId) {
     theme: isDark ? 'filled_black' : 'outline',
     size: 'large',
     width: 340,
-    text: 'signin_with_google',
+    text: btnId === 'googleBtnReg' ? 'signup_with' : 'signin_with_google',
     shape: 'rectangular',
     logo_alignment: 'center',
   });

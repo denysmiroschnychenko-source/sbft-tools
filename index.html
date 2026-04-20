@@ -2391,6 +2391,25 @@ select.f-input option { background:var(--white); }
 }
 .calc-empty-state-icon { font-size:42px; margin-bottom:14px; opacity:0.4; }
 
+/* ── GOOGLE CALENDAR CHECKBOX (у формі активності) ── */
+.gcal-checkbox-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; background:rgba(94,158,255,0.06);
+  border:1px solid rgba(94,158,255,0.2); border-radius:var(--radius-sm);
+  cursor:pointer; transition:all 0.15s;
+  user-select:none;
+}
+.gcal-checkbox-row:hover { background:rgba(94,158,255,0.1); border-color:rgba(94,158,255,0.35); }
+.gcal-checkbox-row input[type="checkbox"] {
+  width:16px; height:16px; cursor:pointer;
+  accent-color:var(--blue);
+}
+.gcal-checkbox-text {
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:12.5px; font-weight:600; color:var(--blue);
+}
+body.dark .gcal-checkbox-row { background:rgba(94,158,255,0.08); border-color:rgba(94,158,255,0.22); }
+
 /* ── TIME PICKER (Година + Хвилина) ── */
 .time-picker-row {
   display:grid; grid-template-columns:1fr 1fr; gap:8px;
@@ -2776,7 +2795,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
         </div>
       </div>
       <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="🔍 Пошук за назвою, містом, адресою..." oninput="renderPartners()">
+        <input type="text" id="searchInput" placeholder="🔍 Пошук за назвою, містом, адресою, телефоном..." oninput="renderPartners()">
         <select id="filterCity" onchange="renderPartners()">
           <option value="">Всі міста</option>
         </select>
@@ -3410,6 +3429,15 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <span>Для задачі обов'язково вкажіть дату наступного контакту</span>
           </div>
+
+          <!-- Чекбокс: після збереження одразу відкрити Google Calendar -->
+          <label class="gcal-checkbox-row" id="actGcalCheckboxWrap" style="margin-top:10px; display:none;">
+            <input type="checkbox" id="actAddToGcal">
+            <span class="gcal-checkbox-text">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Одразу додати в Google Calendar
+            </span>
+          </label>
 
           <div style="margin-top:14px;">
             <button class="btn-green" onclick="addActivity()" style="width:100%;">
@@ -5419,18 +5447,51 @@ function updateTodayBadge() {
 // ============================================================
 function renderPartners() {
   let partners = getPartners();
-  const q = document.getElementById('searchInput').value.toLowerCase();
+  const qRaw = document.getElementById('searchInput').value;
+  const q = qRaw.toLowerCase();
+  // Для пошуку за телефоном — нормалізуємо запит до самих цифр
+  // (щоб "097 896 38 76", "0978963876", "+380978963876" шукались як одне)
+  const qDigits = qRaw.replace(/\D/g, '');
   const city = document.getElementById('filterCity').value;
   const status = document.getElementById('filterStatus').value;
   const nextFilter = document.getElementById('filterNext').value;
   const today = getToday();
 
-  if (q) partners = partners.filter(p =>
-    p.name.toLowerCase().includes(q) ||
-    p.city.toLowerCase().includes(q) ||
-    (p.lpr||'').toLowerCase().includes(q) ||
-    (p.address||'').toLowerCase().includes(q)
-  );
+  // Збирає текст для пошуку з контактів (масив contacts або legacy lpr)
+  function contactsSearchText(p) {
+    var parts = [];
+    if (p.lpr) parts.push(p.lpr);
+    if (Array.isArray(p.contacts)) {
+      p.contacts.forEach(function(c) {
+        if (c.name) parts.push(c.name);
+        if (c.position) parts.push(c.position);
+        if (c.phone) parts.push(c.phone);
+        if (c.link) parts.push(c.link);
+      });
+    }
+    return parts.join(' ').toLowerCase();
+  }
+  // Збирає тільки цифри з телефонів — для нормалізованого порівняння
+  function contactsPhoneDigits(p) {
+    var s = '';
+    if (p.lpr) s += p.lpr;
+    if (Array.isArray(p.contacts)) {
+      p.contacts.forEach(function(c) { if (c.phone) s += ' ' + c.phone; });
+    }
+    return s.replace(/\D/g, '');
+  }
+
+  if (q) partners = partners.filter(function(p) {
+    // Текстовий пошук — назва, місто, адреса, всі поля контактів
+    if (p.name.toLowerCase().includes(q)) return true;
+    if (p.city.toLowerCase().includes(q)) return true;
+    if ((p.address||'').toLowerCase().includes(q)) return true;
+    if (contactsSearchText(p).includes(q)) return true;
+    // Пошук за цифрами телефону — якщо запит містить ≥3 цифри поспіль,
+    // шукаємо збіг у нормалізованих телефонах (без пробілів/плюсів/дужок).
+    if (qDigits.length >= 3 && contactsPhoneDigits(p).includes(qDigits)) return true;
+    return false;
+  });
   if (city) partners = partners.filter(p => p.city === city);
   if (status) partners = partners.filter(p => p.status === status);
   if (nextFilter === 'today') partners = partners.filter(p => p.nextContact === today);
@@ -6082,6 +6143,7 @@ function validateTaskDatePair() {
   var taskEl = document.getElementById('actTask');
   var dateEl = document.getElementById('actNextDate');
   var hintEl = document.getElementById('taskDateHint');
+  var gcalWrap = document.getElementById('actGcalCheckboxWrap');
   if (!taskEl || !dateEl) return;
 
   // Перевіряємо наявність вмісту. .trim() прибирає пробіли — 
@@ -6097,6 +6159,9 @@ function validateTaskDatePair() {
   // якщо force = true, клас ДОДАЄТЬСЯ; якщо false — ПРИБИРАЄТЬСЯ.
   dateEl.classList.toggle('date-required-empty', needsDate);
   if (hintEl) hintEl.style.display = needsDate ? 'flex' : 'none';
+
+  // Показуємо checkbox "в Google Calendar" тільки коли обидва поля заповнені
+  if (gcalWrap) gcalWrap.style.display = (hasTask && hasDate) ? 'flex' : 'none';
 }
 
 function addActivity() {
@@ -6191,6 +6256,75 @@ function addActivity() {
     msg = 'Активність додано, статус: ' + (STATUS_LABELS[newStat] || newStat) + ' ✓';
   }
   showToast(msg, 'success');
+
+  // Google Calendar — якщо чекбокс активний і є задача+дата,
+  // відкриваємо google.com/calendar у новій вкладці з передзаповненими даними
+  var gcalCheck = document.getElementById('actAddToGcal');
+  if (gcalCheck && gcalCheck.checked && task && nextDate) {
+    var partner = (idx >= 0) ? partners[idx] : null;
+    var partnerName = partner ? (partner.name || 'Партнер') : 'Партнер';
+    openInGoogleCalendar(partnerName, task, nextDate, nextTime);
+    // Скидаємо чекбокс, щоб наступна активність не відкрила ще одну подію
+    gcalCheck.checked = false;
+  }
+}
+
+// ── GOOGLE CALENDAR INTEGRATION ────────────────────────────
+// Генерує URL для додавання події в Google Calendar через template action.
+// Формат згідно з офіційним рендер-URL: action=TEMPLATE&text=...&dates=...&details=...
+function buildGCalUrl(title, details, dateStr, timeStr) {
+  // dateStr: "2026-04-22", timeStr: "14:30" або ''
+  var dates;
+  if (timeStr && /^\d{1,2}:\d{1,2}$/.test(timeStr)) {
+    // Timed event: тривалість 30 хв. Формат Google: YYYYMMDDTHHMMSS/YYYYMMDDTHHMMSS
+    // Локальний час — не додаємо 'Z' щоб не зсувати в UTC
+    var dParts = dateStr.split('-');
+    var tParts = timeStr.split(':');
+    var start = new Date(
+      parseInt(dParts[0],10), parseInt(dParts[1],10) - 1, parseInt(dParts[2],10),
+      parseInt(tParts[0],10), parseInt(tParts[1],10), 0, 0
+    );
+    var end = new Date(start.getTime() + 30 * 60 * 1000); // +30 хв
+    function fmt(d) {
+      var p = function(n) { return n < 10 ? '0' + n : '' + n; };
+      return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate())
+           + 'T' + p(d.getHours()) + p(d.getMinutes()) + '00';
+    }
+    dates = fmt(start) + '/' + fmt(end);
+  } else {
+    // All-day event: формат YYYYMMDD/YYYYMMDD_наступний_день
+    var d = dateStr.replace(/-/g, '');
+    // Google вимагає щоб кінцева дата була наступним днем для all-day
+    var next = new Date(
+      parseInt(dateStr.split('-')[0],10),
+      parseInt(dateStr.split('-')[1],10) - 1,
+      parseInt(dateStr.split('-')[2],10) + 1
+    );
+    var p = function(n) { return n < 10 ? '0' + n : '' + n; };
+    var nextStr = next.getFullYear() + p(next.getMonth()+1) + p(next.getDate());
+    dates = d + '/' + nextStr;
+  }
+  var params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: dates,
+    details: details || ''
+  });
+  return 'https://calendar.google.com/calendar/render?' + params.toString();
+}
+
+// Відкриває Google Calendar у новій вкладці для створення події.
+// partnerName — для заголовку, task — для заголовку та деталей, dateStr+timeStr — час.
+function openInGoogleCalendar(partnerName, task, dateStr, timeStr) {
+  var title = partnerName + ' — ' + task;
+  var details = 'Задача по партнеру Bolt Food CRM\n\nПартнер: ' + partnerName + '\nЗадача: ' + task;
+  var url = buildGCalUrl(title, details, dateStr, timeStr);
+  try {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } catch(e) {
+    console.error('Failed to open Google Calendar:', e);
+    showToast('Не вдалось відкрити Google Calendar', 'error');
+  }
 }
 
 function deleteActivity(partnerId, actId) {

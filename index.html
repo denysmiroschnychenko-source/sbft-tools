@@ -2391,6 +2391,32 @@ select.f-input option { background:var(--white); }
 }
 .calc-empty-state-icon { font-size:42px; margin-bottom:14px; opacity:0.4; }
 
+/* PDF export mode — компактна версія для вміщення в A4 */
+.calc-results.pdf-exporting { gap:10px; }
+.calc-results.pdf-exporting .calc-partner-header { padding:12px 18px; }
+.calc-results.pdf-exporting .calc-partner-name { font-size:17px; }
+.calc-results.pdf-exporting .calc-partner-sub { font-size:11px; }
+.calc-results.pdf-exporting .calc-partner-locs { padding:4px 10px; font-size:11px; }
+.calc-results.pdf-exporting .calc-hero { padding:14px 20px; gap:12px; box-shadow:none; }
+.calc-results.pdf-exporting .calc-hero-label { font-size:10px; margin-bottom:3px; }
+.calc-results.pdf-exporting .calc-hero-val { font-size:28px; }
+.calc-results.pdf-exporting .calc-hero-sub { font-size:11px; margin-top:3px; }
+.calc-results.pdf-exporting .calc-hero-side .hs-lbl { font-size:10px; }
+.calc-results.pdf-exporting .calc-hero-side .hs-val { font-size:16px; }
+.calc-results.pdf-exporting .calc-hero-side { gap:14px; }
+.calc-results.pdf-exporting .calc-card-block { padding:12px 14px; box-shadow:none; }
+.calc-results.pdf-exporting .calc-section-title { font-size:11px; margin-bottom:8px; padding-bottom:6px; }
+.calc-results.pdf-exporting .calc-section-title .csi { width:18px; height:18px; font-size:10px; }
+.calc-results.pdf-exporting .calc-metric-grid { gap:8px; grid-template-columns:repeat(3, 1fr); }
+.calc-results.pdf-exporting .calc-metric { padding:9px 11px; box-shadow:none; }
+.calc-results.pdf-exporting .calc-metric-label { font-size:9.5px; margin-bottom:3px; }
+.calc-results.pdf-exporting .calc-metric-val { font-size:17px; }
+.calc-results.pdf-exporting .calc-metric-sub { font-size:9.5px; margin-top:1px; }
+.calc-results.pdf-exporting .pdf-date-stamp {
+  font-size:10.5px; color:var(--text-muted); font-weight:500;
+  text-align:right; padding:0 4px 2px 0;
+}
+
 @media (max-width: 960px) {
   .calc-wrap { grid-template-columns:1fr; }
   .calc-inputs-card { position:static; }
@@ -2705,7 +2731,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
         </div>
       </div>
       <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="🔍 Пошук за назвою, містом..." oninput="renderPartners()">
+        <input type="text" id="searchInput" placeholder="🔍 Пошук за назвою, містом, адресою..." oninput="renderPartners()">
         <select id="filterCity" onchange="renderPartners()">
           <option value="">Всі міста</option>
         </select>
@@ -2876,6 +2902,15 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
                 </div>
                 <div class="calc-hint">Кур'єри та клієнти, що працюють у кількох додатках одночасно, генерують на стільки % більше замовлень. За замовчуванням +37% (з прикладу).</div>
               </div>
+            </div>
+
+            <div class="calc-group">
+              <div class="calc-group-title">Відображення у звіті</div>
+              <div class="multiapp-toggle">
+                <label onclick="calcToggleShowCompetitor()">📈 Показувати блок конкурента</label>
+                <div class="multiapp-toggle-switch on" id="cpShowCompSwitch" onclick="calcToggleShowCompetitor()"></div>
+              </div>
+              <div class="calc-hint" style="margin-top:8px;">Вимкніть, щоб у звіті та PDF залишилась лише інформація про потенціал Bolt Food — зручно для презентації партнеру.</div>
             </div>
 
             <div class="calc-actions">
@@ -3153,6 +3188,13 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
           <input class="f-input" id="pLocs" type="number" min="1" placeholder="1" value="1">
         </div>
       </div>
+      <div class="form-row single">
+        <div>
+          <div class="f-label">Адреса закладу <span style="color:var(--text-muted);font-weight:500;">(вулиця та номер будинку)</span></div>
+          <input class="f-input" id="pAddress" placeholder="Наприклад: вул. Київська 15">
+          <div class="calc-hint" style="margin-top:5px;">Назва вулиці буде автоматично додана до назви закладу у форматі «Назва (Вулиця)» — зручно для мереж з кількома локаціями.</div>
+        </div>
+      </div>
       <!-- Блок контактів — замінює старе поле ЛПР.
            Логіка повторює блок у вкладці "Редагувати" картки партнера,
            щоб дати однаковий UX в обох місцях. -->
@@ -3349,6 +3391,13 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
           <div>
             <div class="f-label">Кількість локацій</div>
             <input class="f-input" id="eLocs" type="number" min="1">
+          </div>
+        </div>
+        <div class="form-row single">
+          <div>
+            <div class="f-label">Адреса закладу <span style="color:var(--text-muted);font-weight:500;">(вулиця та номер будинку)</span></div>
+            <input class="f-input" id="eAddress" placeholder="Наприклад: вул. Київська 15">
+            <div class="calc-hint" style="margin-top:5px;">Назва вулиці буде автоматично додана до назви закладу у форматі «Назва (Вулиця)».</div>
           </div>
         </div>
         <!-- Contacts section in edit tab -->
@@ -5290,7 +5339,10 @@ function renderPartners() {
   const today = getToday();
 
   if (q) partners = partners.filter(p =>
-    p.name.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || (p.lpr||'').toLowerCase().includes(q)
+    p.name.toLowerCase().includes(q) ||
+    p.city.toLowerCase().includes(q) ||
+    (p.lpr||'').toLowerCase().includes(q) ||
+    (p.address||'').toLowerCase().includes(q)
   );
   if (city) partners = partners.filter(p => p.city === city);
   if (status) partners = partners.filter(p => p.status === status);
@@ -5485,7 +5537,7 @@ function openAddPartner() {
   editingId = null;
   document.getElementById('partnerModalTitle').textContent = t('partner.new');
   // pLpr більше не існує — замість нього блок контактів. Очищаємо решту полів.
-  ['pCity','pName','pComment','pNextContact'].forEach(function(id) {
+  ['pCity','pName','pComment','pNextContact','pAddress'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -5515,10 +5567,40 @@ function getWeekNumber(d) {
   return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
 }
 
+// ── ADDRESS HELPERS ────────────────────────────────────────
+// Витягує назву вулиці з повної адреси: прибирає префікси (вул., пр-т тощо)
+// і номер будинку в кінці. Повертає чисту назву вулиці або порожній рядок.
+function extractStreetName(address) {
+  if (!address) return '';
+  var s = String(address).trim();
+  // Прибираємо префікси типів вулиць (з крапкою і без, різні варіанти)
+  s = s.replace(/^(вулиця|вул\.?|пр-?т|просп\.?|проспект|провулок|пров\.?|бульв\.?|бульвар|шосе|площа|пл\.?|набережна|наб\.?|узвіз)\s+/i, '');
+  // Прибираємо номер будинку в кінці: 15, 15а, 15-б, 15/2, 15/2а
+  s = s.replace(/[,\s]+\d+[\/\-]?[а-яА-ЯіІґҐєЄa-zA-Z]?\d*[а-яА-ЯіІґҐєЄa-zA-Z]?\s*$/i, '');
+  // Прибираємо кому або крапку з комою в кінці, якщо лишилась
+  s = s.replace(/[,;]\s*$/, '').trim();
+  return s;
+}
+
+// Додає назву вулиці до назви закладу у форматі "Назва (Вулиця)".
+// Якщо назва вже має дужку в кінці — замінює її, не дублює.
+function appendStreetToName(name, address) {
+  var base = String(name || '').trim();
+  if (!base) return base;
+  var street = extractStreetName(address);
+  // Прибираємо наявну дужкову частину в кінці (щоб не накопичувалось при повторному збереженні)
+  base = base.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  if (!street) return base;
+  return base + ' (' + street + ')';
+}
+
 function savePartner() {
   const city = document.getElementById('pCity').value.trim();
-  const name = document.getElementById('pName').value.trim();
-  if (!city || !name) { showToast('Місто та назва обов\'язкові!', 'error'); return; }
+  const rawName = document.getElementById('pName').value.trim();
+  const address = (document.getElementById('pAddress') ? document.getElementById('pAddress').value : '').trim();
+  if (!city || !rawName) { showToast('Місто та назва обов\'язкові!', 'error'); return; }
+  // Якщо є адреса — автоматично додаємо назву вулиці до назви
+  const name = address ? appendStreetToName(rawName, address) : rawName;
 
   // Будуємо legacy lpr-рядок з масиву контактів — для зворотної сумісності.
   // Старі частини коду (експорт, пошук) ще читають p.lpr, тому підтримуємо обидва поля.
@@ -5535,7 +5617,7 @@ function savePartner() {
       // При редагуванні існуючого партнера контакти вже керуються окремо
       // через вкладку "Редагувати" — тут їх не чіпаємо.
       partners[idx] = { ...partners[idx],
-        city, name,
+        city, name, address,
         locs: parseInt(document.getElementById('pLocs').value) || 1,
         status: document.getElementById('pStatus').value,
         comment: document.getElementById('pComment').value.trim(),
@@ -5548,7 +5630,7 @@ function savePartner() {
     const comment = document.getElementById('pComment').value.trim();
     // Забираємо контакти з тимчасового буферу в об'єкт нового партнера
     const newPartner = {
-      id, city, name,
+      id, city, name, address,
       locs: parseInt(document.getElementById('pLocs').value) || 1,
       contacts: pNewPartnerContacts.slice(), // копія масиву, а не посилання
       lpr: contactsToLpr(pNewPartnerContacts), // legacy формат для зворотної сумісності
@@ -5830,6 +5912,7 @@ function renderInfoTab(p) {
   document.getElementById('infoGrid').innerHTML = `
     <div class="info-item"><div class="il">Місто</div><div class="iv">${p.city}</div></div>
     <div class="info-item"><div class="il">Локацій</div><div class="iv">${p.locs || 1}</div></div>
+    <div class="info-item" style="grid-column:1/-1;"><div class="il">Адреса</div><div class="iv">${escHtml(p.address || '—')}</div></div>
     <div class="info-item"><div class="il">ЛПР / Контакт</div><div class="iv">${lprVal}</div></div>
     <div class="info-item"><div class="il">Статус</div><div class="iv">${statusBadge(p.status)}</div></div>
     <div class="info-item"><div class="il">Додано</div><div class="iv">${p.createdAt ? p.createdAt.split('T')[0] : '—'}</div></div>
@@ -5847,6 +5930,8 @@ function fillEditTab(p) {
   document.getElementById('eStatus').value = p.status || 'new';
   document.getElementById('eComment').value = p.comment || '';
   document.getElementById('eNextContact').value = p.nextContact || '';
+  const eAddr = document.getElementById('eAddress');
+  if (eAddr) eAddr.value = p.address || '';
   renderEditContactsList(p);
   editCancelAddRow(); // reset add form
 }
@@ -5900,10 +5985,16 @@ function saveEditPartner() {
   var partners = getPartners();
   var idx = partners.findIndex(function(p) { return p.id === currentPartnerId; });
   if (idx < 0) return;
+  var rawName = document.getElementById('eName').value.trim();
+  var eAddr = document.getElementById('eAddress');
+  var address = eAddr ? eAddr.value.trim() : '';
+  // Автодопис вулиці у назву — тільки коли адреса заповнена
+  var name = address ? appendStreetToName(rawName, address) : rawName;
   // Keep contacts as-is (managed separately via editDeleteContact / editSaveNewRow)
   partners[idx] = Object.assign({}, partners[idx], {
     city:        document.getElementById('eCity').value.trim(),
-    name:        document.getElementById('eName').value.trim(),
+    name:        name,
+    address:     address,
     locs:        parseInt(document.getElementById('eLocs').value) || 1,
     status:      document.getElementById('eStatus').value,
     comment:     document.getElementById('eComment').value.trim(),
@@ -6389,6 +6480,7 @@ function exportXLSX() {
       'Тиждень створення': p.week || '',
       'Місто': p.city,
       'Назва закладу': p.name,
+      'Адреса': p.address || '',
       'Локацій': p.locs || 1,
       'ЛПР / Контакт': p.lpr || '',
       'Статус': STATUS_LABELS[p.status] || p.status,
@@ -6403,7 +6495,7 @@ function exportXLSX() {
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [
-    {wch:18},{wch:14},{wch:28},{wch:8},{wch:22},{wch:16},{wch:14},{wch:16},{wch:18},{wch:35},{wch:12},{wch:60}
+    {wch:18},{wch:14},{wch:28},{wch:24},{wch:8},{wch:22},{wch:16},{wch:14},{wch:16},{wch:18},{wch:35},{wch:12},{wch:60}
   ];
 
   // Style header row
@@ -6529,6 +6621,7 @@ window.addEventListener('DOMContentLoaded', () => {
 let calcCurrentTool = null;
 let calcMultiappOn = false;
 let calcMultiappPct = 37;
+let calcShowCompetitor = true;
 
 function renderTools() {
   if (calcCurrentTool === 'potential') {
@@ -6594,6 +6687,13 @@ function calcToggleMultiapp() {
 function calcSetMultiappPct(v) {
   const n = parseFloat(v);
   if (!isNaN(n) && n >= 0 && n <= 300) calcMultiappPct = n;
+  calcRender();
+}
+
+function calcToggleShowCompetitor() {
+  calcShowCompetitor = !calcShowCompetitor;
+  const sw = document.getElementById('cpShowCompSwitch');
+  if (sw) sw.classList.toggle('on', calcShowCompetitor);
   calcRender();
 }
 
@@ -6714,8 +6814,6 @@ function calcRender() {
     + '<div class="calc-partner-header">'
     + '  <div>'
     + '    <div class="calc-partner-name">' + escHtml(partnerName) + '</div>'
-    + '    <div class="calc-partner-sub">Модель: ' + r.modelLabel
-    + '    &nbsp;·&nbsp; Коефіцієнт Bolt: ' + calcFmtPct(r.boltCoef) + '</div>'
     + '  </div>'
     + '  <div class="calc-partner-locs">📍 ' + calcFmt(inp.locs) + ' ' + calcPluralLocs(inp.locs) + '</div>'
     + '</div>';
@@ -6731,28 +6829,6 @@ function calcRender() {
     + '  <div class="calc-hero-side">'
     + '    <div class="hs"><div class="hs-lbl">GMV / місяць</div><div class="hs-val">' + calcFmtMoney(r.bolt.gmv_month) + '</div></div>'
     + '    <div class="hs"><div class="hs-lbl">GMV / рік</div><div class="hs-val">' + calcFmtMoney(r.bolt.gmv_year) + '</div></div>'
-    + '  </div>'
-    + '</div>';
-
-  const otherShare = Math.max(0, 100 - inp.boltShare - inp.compShare);
-  const shareBarHtml = ''
-    + '<div class="calc-card-block">'
-    + '  <div class="calc-section-title"><span class="csi">🧭</span>Розподіл ринку у місті</div>'
-    + '  <div class="comp-bar">'
-    + '    <div class="comp-bar-row">'
-    + '      <div class="comp-bar-label"><span class="cbl-name">⚡ Bolt Food</span><span class="cbl-val">' + calcFmt(inp.boltShare, 1) + '%</span></div>'
-    + '      <div class="comp-bar-track"><div class="comp-bar-fill bolt" style="width:' + Math.min(100, inp.boltShare) + '%"></div></div>'
-    + '    </div>'
-    + '    <div class="comp-bar-row">'
-    + '      <div class="comp-bar-label"><span class="cbl-name">Конкурент</span><span class="cbl-val">' + calcFmt(inp.compShare, 1) + '%</span></div>'
-    + '      <div class="comp-bar-track"><div class="comp-bar-fill comp" style="width:' + Math.min(100, inp.compShare) + '%"></div></div>'
-    + '    </div>'
-    + (otherShare > 0.05
-        ? '    <div class="comp-bar-row">'
-          + '      <div class="comp-bar-label"><span class="cbl-name">Інші гравці</span><span class="cbl-val">' + calcFmt(otherShare, 1) + '%</span></div>'
-          + '      <div class="comp-bar-track"><div class="comp-bar-fill other" style="width:' + Math.min(100, otherShare) + '%"></div></div>'
-          + '    </div>'
-        : '')
     + '  </div>'
     + '</div>';
 
@@ -6772,7 +6848,7 @@ function calcRender() {
     + '  </div>'
     + '</div>';
 
-  const compBlockHtml = ''
+  const compBlockHtml = calcShowCompetitor ? (''
     + '<div class="calc-card-block">'
     + '  <div class="calc-section-title"><span class="csi">📈</span>Результати партнера на платформі конкурента</div>'
     + '  <div class="calc-metric-grid">'
@@ -6785,9 +6861,9 @@ function calcRender() {
     + calcMetric('На локацію / рік', calcFmt(r.competitor.orders_per_loc_year), '', 'yellow')
     + calcMetric('GMV / локацію / міс.', calcFmtMoney(r.competitor.gmv_per_loc_month), '', 'yellow')
     + '  </div>'
-    + '</div>';
+    + '</div>') : '';
 
-  box.innerHTML = headerHtml + heroHtml + shareBarHtml + boltBlockHtml + compBlockHtml;
+  box.innerHTML = headerHtml + heroHtml + boltBlockHtml + compBlockHtml;
 }
 
 function calcReset() {
@@ -6797,12 +6873,15 @@ function calcReset() {
   document.getElementById('cpCompShare').value = 73;
   calcMultiappOn = false;
   calcMultiappPct = 37;
+  calcShowCompetitor = true;
   const sw = document.getElementById('cpMultiappSwitch');
   const pctField = document.getElementById('cpMultiappPctField');
   const pctInp = document.getElementById('cpMultiappPct');
+  const swShowComp = document.getElementById('cpShowCompSwitch');
   if (sw) sw.classList.remove('on');
   if (pctField) pctField.style.display = 'none';
   if (pctInp) pctInp.value = 37;
+  if (swShowComp) swShowComp.classList.add('on');
   calcRender();
   showToast('Форму очищено', 'success');
 }
@@ -6886,11 +6965,20 @@ async function calcExportPDF() {
   if (btn) { btn.innerHTML = '⏳ Готую...'; btn.disabled = true; }
 
   const wasDark = document.body.classList.contains('dark');
-  if (wasDark) {
-    document.body.classList.remove('dark');
-    calcRender();
-    await new Promise(r => setTimeout(r, 120));
-  }
+  if (wasDark) document.body.classList.remove('dark');
+
+  // Вмикаємо компактний режим для експорту
+  resultsEl.classList.add('pdf-exporting');
+
+  // Додаємо HTML-штамп з датою (у скріншоті буде з правильною кирилицею)
+  const dateStr = new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const stamp = document.createElement('div');
+  stamp.className = 'pdf-date-stamp';
+  stamp.textContent = 'Bolt Food CRM · Калькулятор потенціалу партнера · ' + dateStr;
+  resultsEl.insertBefore(stamp, resultsEl.firstChild);
+
+  // Даємо браузеру застосувати CSS
+  await new Promise(r => setTimeout(r, 150));
 
   try {
     const canvas = await html2canvas(resultsEl, {
@@ -6905,43 +6993,40 @@ async function calcExportPDF() {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageW = 210, pageH = 297;
     const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const imgData = canvas.toDataURL('image/png');
+    const availW = pageW - margin * 2;
+    const availH = pageH - margin * 2;
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
-    pdf.setTextColor(120);
-    const today = new Date().toLocaleDateString('uk-UA');
-    pdf.text('Bolt Food CRM — Калькулятор потенціалу партнера · ' + today, margin, 6);
-
-    let heightLeft = imgH;
-    let position = margin;
-    pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-    heightLeft -= (pageH - margin);
-
-    while (heightLeft > 0) {
-      position = margin - (imgH - heightLeft);
-      pdf.addPage();
-      pdf.setFontSize(9);
-      pdf.setTextColor(120);
-      pdf.text('Bolt Food CRM — Калькулятор потенціалу партнера · ' + today, margin, 6);
-      pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-      heightLeft -= (pageH - margin);
+    // Fit-to-A4: масштабуємо пропорційно, щоб вмістилось і по ширині, і по висоті
+    const ratio = canvas.height / canvas.width;
+    let imgW, imgH;
+    if (availW * ratio <= availH) {
+      // Вміщується при повній ширині
+      imgW = availW;
+      imgH = availW * ratio;
+    } else {
+      // Лімітує висота — підганяємо під висоту
+      imgH = availH;
+      imgW = availH / ratio;
     }
+    // Центрування
+    const x = (pageW - imgW) / 2;
+    const y = (pageH - imgH) / 2;
+
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', x, y, imgW, imgH);
 
     const partnerName = (inp.name || 'партнер').replace(/[^\wа-яА-ЯіІїЇєЄґҐ\-_]+/g, '_').slice(0, 40);
-    const date = new Date().toISOString().slice(0,10);
-    pdf.save('потенціал_' + partnerName + '_' + date + '.pdf');
+    const dateFile = new Date().toISOString().slice(0,10);
+    pdf.save('потенціал_' + partnerName + '_' + dateFile + '.pdf');
     showToast('PDF збережено ✓', 'success');
   } catch (e) {
     console.error('PDF export error:', e);
     showToast('Помилка при створенні PDF', 'error');
   } finally {
-    if (wasDark) {
-      document.body.classList.add('dark');
-      calcRender();
-    }
+    // Прибираємо тимчасові зміни
+    resultsEl.classList.remove('pdf-exporting');
+    if (stamp && stamp.parentNode) stamp.parentNode.removeChild(stamp);
+    if (wasDark) document.body.classList.add('dark');
     if (btn) { btn.innerHTML = orig; btn.disabled = false; }
   }
 }

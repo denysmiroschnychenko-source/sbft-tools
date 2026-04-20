@@ -2391,6 +2391,51 @@ select.f-input option { background:var(--white); }
 }
 .calc-empty-state-icon { font-size:42px; margin-bottom:14px; opacity:0.4; }
 
+/* ── TIME PICKER (Година + Хвилина) ── */
+.time-picker-row {
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  align-items:center;
+}
+.time-picker-row select.f-input,
+.time-picker-row input.f-input {
+  text-align:center; padding:10px 8px;
+  font-variant-numeric:tabular-nums;
+}
+.time-picker-row select.f-input { cursor:pointer; }
+/* Прибираємо нативні спін-стрілки у number-input хвилин — виглядає чистіше */
+.time-picker-row input[type="number"]::-webkit-outer-spin-button,
+.time-picker-row input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.time-picker-row input[type="number"] { -moz-appearance: textfield; }
+.time-picker-wrap { display:flex; gap:8px; align-items:center; }
+.time-picker-wrap > .time-picker-row { flex:1; }
+.time-picker-clear {
+  background:none; border:1.5px solid var(--border-color);
+  border-radius:var(--radius-sm); padding:9px 10px;
+  color:var(--text-muted); cursor:pointer; font-size:12px;
+  transition:all 0.15s; line-height:1;
+}
+.time-picker-clear:hover { color:var(--red); border-color:var(--red); }
+.time-picker-label-row {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:6px;
+}
+.time-picker-label-row .f-label { margin-bottom:0; }
+.time-picker-hint {
+  font-size:11px; color:var(--text-muted); margin-top:4px;
+}
+
+/* ── REMINDER BADGE (червоний для прострочених за часом) ── */
+.nav-badge.red-pulse {
+  background:var(--red); color:#fff;
+  animation:redPulse 2s ease-in-out infinite;
+}
+@keyframes redPulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(255,94,94,0.6); }
+  50%     { box-shadow:0 0 0 5px rgba(255,94,94,0); }
+}
+
 /* PDF export mode — компактна версія для вміщення в A4 */
 .calc-results.pdf-exporting { gap:10px; }
 .calc-results.pdf-exporting .calc-partner-header { padding:12px 18px; }
@@ -3248,6 +3293,17 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
         <div>
           <div class="f-label">Наступний контакт</div>
           <input class="f-input" type="date" id="pNextContact">
+          <div class="time-picker-label-row" style="margin-top:8px;">
+            <div class="f-label">Час <span style="color:var(--text-muted);font-weight:500;">(опційно)</span></div>
+          </div>
+          <div class="time-picker-wrap">
+            <div class="time-picker-row">
+              <select class="f-input" id="pNextHour"><option value="">—</option></select>
+              <input class="f-input" id="pNextMinute" type="number" min="0" max="59" step="1" placeholder="хв (0-59)" inputmode="numeric">
+            </div>
+            <button type="button" class="time-picker-clear" onclick="clearTimePicker('pNextHour','pNextMinute')" title="Очистити час">✕</button>
+          </div>
+          <div class="time-picker-hint">Якщо вкажете час — прийде нагадування у момент настання</div>
         </div>
         <div>
           <div class="f-label">Тиждень (авто)</div>
@@ -3338,6 +3394,15 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
               oninput="validateTaskDatePair()"
               onchange="validateTaskDatePair()"
               title="Дата наступного контакту">
+          </div>
+          <!-- Time picker (опційний) — компактний, під рядком з датою -->
+          <div class="time-picker-wrap" style="margin-top:8px;">
+            <span style="font-size:11px;color:var(--text-muted);font-weight:600;white-space:nowrap;">🕐 Час:</span>
+            <div class="time-picker-row" style="flex:1;max-width:220px;">
+              <select class="f-input" id="actNextHour"><option value="">—</option></select>
+              <input class="f-input" id="actNextMinute" type="number" min="0" max="59" step="1" placeholder="хв (0-59)" inputmode="numeric">
+            </div>
+            <button type="button" class="time-picker-clear" onclick="clearTimePicker('actNextHour','actNextMinute')" title="Очистити час">✕</button>
           </div>
           <!-- Підказка — показується ТІЛЬКИ коли задача введена, а дата відсутня.
                display:none за замовчуванням; JS перемикає її видимість. -->
@@ -3448,6 +3513,17 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
           <div>
             <div class="f-label">Наступний контакт</div>
             <input class="f-input" type="date" id="eNextContact">
+            <div class="time-picker-label-row" style="margin-top:8px;">
+              <div class="f-label">Час <span style="color:var(--text-muted);font-weight:500;">(опційно)</span></div>
+            </div>
+            <div class="time-picker-wrap">
+              <div class="time-picker-row">
+                <select class="f-input" id="eNextHour"><option value="">—</option></select>
+                <input class="f-input" id="eNextMinute" type="number" min="0" max="59" step="1" placeholder="хв (0-59)" inputmode="numeric">
+              </div>
+              <button type="button" class="time-picker-clear" onclick="clearTimePicker('eNextHour','eNextMinute')" title="Очистити час">✕</button>
+            </div>
+            <div class="time-picker-hint">Нагадування прийде коли настане вказаний час</div>
           </div>
           <div style="display:flex;align-items:flex-end; gap:10px;">
             <button class="btn btn-green" onclick="saveEditPartner()" style="flex:1;"><span class="btn-icon">✓</span> Зберегти</button>
@@ -4002,6 +4078,8 @@ function doLogout() {
   if (typeof google !== 'undefined' && google.accounts && currentUser && currentUser.isGoogle) {
     google.accounts.id.disableAutoSelect();
   }
+  // Зупиняємо цикл нагадувань — після логауту він не потрібен
+  if (reminderIntervalId) { clearInterval(reminderIntervalId); reminderIntervalId = null; }
   localStorage.removeItem(SESSION_KEY);
   currentUser = null;
   // Reset avatar
@@ -4084,6 +4162,15 @@ function statusBadge(s) {
 function initApp() {
   try {
     updateTodayBadge();
+    // Ініціалізуємо time-picker у всіх формах (треба зробити один раз після
+    // відображення DOM — елементи існують у HTML, але select-и порожні)
+    populateTimePicker('pNextHour',   'pNextMinute');
+    populateTimePicker('eNextHour',   'eNextMinute');
+    populateTimePicker('actNextHour', 'actNextMinute');
+    // Запускаємо цикл перевірки нагадувань (раз на 30 сек)
+    startReminderLoop();
+    // Оновлюємо бейдж нагадувань при старті
+    updateReminderBadge();
     showPage('today');
   } catch(e) {
     console.error('initApp error:', e);
@@ -5544,6 +5631,7 @@ function openAddPartner() {
   document.getElementById('pLocs').value = '1';
   document.getElementById('pStatus').value = 'new';
   document.getElementById('pWeek').value = getWeekLabel();
+  clearTimePicker('pNextHour', 'pNextMinute');
   // Скидаємо буфер контактів — нова модалка починається з чистого аркуша
   pNewPartnerContacts = [];
   pRenderContacts();
@@ -5570,6 +5658,212 @@ function getWeekNumber(d) {
 // ── ADDRESS HELPERS ────────────────────────────────────────
 // Витягує назву вулиці з повної адреси: прибирає префікси (вул., пр-т тощо)
 // і номер будинку в кінці. Повертає чисту назву вулиці або порожній рядок.
+// ── TIME PICKER & REMINDERS ────────────────────────────────
+// Наповнює select годин (00-23). Хвилини — вручну у текстовому input (0-59).
+function populateTimePicker(hourSelectId, minuteInputId) {
+  var hSel = document.getElementById(hourSelectId);
+  var mInp = document.getElementById(minuteInputId);
+  if (!hSel) return;
+  // Скидаємо до placeholder
+  hSel.innerHTML = '<option value="">—</option>';
+  for (var h = 0; h < 24; h++) {
+    var hv = h < 10 ? '0' + h : '' + h;
+    var o = document.createElement('option');
+    o.value = hv; o.textContent = hv + ' год';
+    hSel.appendChild(o);
+  }
+  // Для input хвилин — просто переконуємось що він порожній
+  if (mInp) mInp.value = '';
+}
+
+// Читає час у форматі "HH:MM" з select годин і input хвилин.
+// Повертає '' якщо година не обрана. Якщо година обрана, але хвилини
+// порожні або некоректні — вважаємо 00.
+function readTimePicker(hourSelectId, minuteInputId) {
+  var h = (document.getElementById(hourSelectId) || {}).value || '';
+  var mRaw = (document.getElementById(minuteInputId) || {}).value || '';
+  if (!h) return '';
+  var mNum = parseInt(mRaw, 10);
+  if (isNaN(mNum) || mNum < 0 || mNum > 59) mNum = 0;
+  var m = mNum < 10 ? '0' + mNum : '' + mNum;
+  return h + ':' + m;
+}
+
+// Встановлює значення у select годин + input хвилин з рядка "HH:MM".
+function setTimePicker(hourSelectId, minuteInputId, timeStr) {
+  var hSel = document.getElementById(hourSelectId);
+  var mInp = document.getElementById(minuteInputId);
+  if (!hSel) return;
+  if (!timeStr || !/^\d{1,2}:\d{1,2}$/.test(timeStr)) {
+    hSel.value = '';
+    if (mInp) mInp.value = '';
+    return;
+  }
+  var parts = timeStr.split(':');
+  var h = parts[0].padStart(2, '0');
+  var m = parts[1].padStart(2, '0');
+  hSel.value = h;
+  if (mInp) mInp.value = m;
+}
+
+function clearTimePicker(hourSelectId, minuteInputId) {
+  var hSel = document.getElementById(hourSelectId);
+  var mInp = document.getElementById(minuteInputId);
+  if (hSel) hSel.value = '';
+  if (mInp) mInp.value = '';
+}
+
+// ── REMINDER SYSTEM ────────────────────────────────────────
+// Локальний ключ зі списком вже показаних нагадувань — формат "partnerId:YYYY-MM-DD:HH:MM"
+var REMINDED_KEY = 'bfcrm_reminded';
+function getRemindedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(REMINDED_KEY) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function saveRemindedSet(set) {
+  // Обмежимо розмір 500 записами, щоб не розростався нескінченно
+  var arr = Array.from(set);
+  if (arr.length > 500) arr = arr.slice(-500);
+  localStorage.setItem(REMINDED_KEY, JSON.stringify(arr));
+}
+function reminderKey(p) {
+  return p.id + ':' + (p.nextContact || '') + ':' + (p.nextTime || '');
+}
+
+// Просимо дозвіл на показ браузерних нотифікацій. Викликається один раз після логіну.
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    // Асинхронний запит — користувач побачить системний діалог
+    try { Notification.requestPermission(); } catch(e) { /* старі браузери */ }
+  }
+}
+
+// Показує одне нагадування: тост (якщо вкладка активна) + браузерна нотифікація (якщо неактивна).
+function showReminder(p) {
+  var timeStr = p.nextTime ? (' о ' + p.nextTime) : '';
+  var title = 'Час контакту: ' + p.name;
+  var body = (p.city ? p.city + ' · ' : '') + 'Заплановано на сьогодні' + timeStr;
+
+  // Тост — завжди показується (м'яке нагадування в UI)
+  try { showToast('🔔 ' + title + ' — ' + (p.city || ''), 'success'); } catch(e) {}
+
+  // Програвання простого beep-звуку через Web Audio API (без зовнішніх файлів)
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880; // A5
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) { /* звук не критичний */ }
+
+  // Браузерна нотифікація — для випадку коли вкладка неактивна
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      var n = new Notification(title, {
+        body: body,
+        tag: 'bfcrm-reminder-' + p.id,
+        requireInteraction: false
+      });
+      // Клік по нотифікації — фокус на вкладку і відкриття картки партнера
+      n.onclick = function() {
+        window.focus();
+        try { openDetail(p.id); } catch(e) {}
+        n.close();
+      };
+    } catch(e) { /* деякі браузери блокують у фонових вкладках */ }
+  }
+}
+
+// Основна функція перевірки — раз на 30 сек обходить усіх партнерів з nextContact+nextTime
+// і показує нагадування тим, чий час настав і для кого це ще не робилось.
+function checkReminders() {
+  var partners = getPartners();
+  if (!partners || partners.length === 0) return;
+  var now = new Date();
+  var reminded = getRemindedSet();
+  var anyShown = false;
+
+  for (var i = 0; i < partners.length; i++) {
+    var p = partners[i];
+    if (!p.nextContact) continue;
+    // Без часу — нагадування не шлемо (бо не знаємо моменту; це буденний "today" у календарі)
+    if (!p.nextTime) continue;
+    var key = reminderKey(p);
+    if (reminded.has(key)) continue;
+
+    // Будуємо цільовий Date у локальному часовому поясі користувача
+    var parts = p.nextContact.split('-');
+    var tParts = p.nextTime.split(':');
+    if (parts.length !== 3 || tParts.length !== 2) continue;
+    var target = new Date(
+      parseInt(parts[0],10), parseInt(parts[1],10) - 1, parseInt(parts[2],10),
+      parseInt(tParts[0],10), parseInt(tParts[1],10), 0, 0
+    );
+    if (isNaN(target.getTime())) continue;
+
+    // Настав час або вже минуло — показуємо один раз
+    if (target.getTime() <= now.getTime()) {
+      showReminder(p);
+      reminded.add(key);
+      anyShown = true;
+    }
+  }
+
+  if (anyShown) {
+    saveRemindedSet(reminded);
+    // Оновлюємо бейдж на навігації
+    updateReminderBadge();
+  }
+}
+
+// Оновлює червоний бейдж на пункті "Головна" — показує кількість прострочених за часом
+function updateReminderBadge() {
+  var badge = document.getElementById('todayBadge');
+  if (!badge) return;
+  var partners = getPartners();
+  var now = new Date();
+  var dueNowCount = 0;
+  for (var i = 0; i < partners.length; i++) {
+    var p = partners[i];
+    if (!p.nextContact) continue;
+    if (!p.nextTime) continue;
+    var parts = p.nextContact.split('-');
+    var tParts = p.nextTime.split(':');
+    if (parts.length !== 3 || tParts.length !== 2) continue;
+    var target = new Date(
+      parseInt(parts[0],10), parseInt(parts[1],10) - 1, parseInt(parts[2],10),
+      parseInt(tParts[0],10), parseInt(tParts[1],10), 0, 0
+    );
+    if (target.getTime() <= now.getTime()) dueNowCount++;
+  }
+  // Якщо є прострочені — показуємо червоний бейдж, інакше залишаємо стандартну логіку todayBadge
+  if (dueNowCount > 0) {
+    badge.textContent = dueNowCount;
+    badge.classList.remove('green');
+    badge.classList.add('red-pulse');
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.classList.remove('red-pulse');
+    // Повертаємо до звичайної поведінки — updateTodayBadge перерисує сам
+    if (typeof updateTodayBadge === 'function') updateTodayBadge();
+  }
+}
+
+// Стартер — викликається один раз після логіну
+var reminderIntervalId = null;
+function startReminderLoop() {
+  if (reminderIntervalId) return; // вже запущено
+  requestNotificationPermission();
+  // Перша перевірка одразу, потім кожні 30 секунд
+  checkReminders();
+  reminderIntervalId = setInterval(checkReminders, 30000);
+}
+
 function extractStreetName(address) {
   if (!address) return '';
   var s = String(address).trim();
@@ -5611,6 +5905,7 @@ function savePartner() {
   }
 
   const partners = getPartners();
+  const nextTime = readTimePicker('pNextHour', 'pNextMinute');
   if (editingId) {
     const idx = partners.findIndex(p => p.id === editingId);
     if (idx >= 0) {
@@ -5622,6 +5917,7 @@ function savePartner() {
         status: document.getElementById('pStatus').value,
         comment: document.getElementById('pComment').value.trim(),
         nextContact: document.getElementById('pNextContact').value,
+        nextTime: nextTime,
         updatedAt: new Date().toISOString()
       };
     }
@@ -5637,6 +5933,7 @@ function savePartner() {
       status: document.getElementById('pStatus').value,
       comment,
       nextContact: document.getElementById('pNextContact').value,
+      nextTime: nextTime,
       week: getWeekLabel(),
       createdAt: new Date().toISOString()
     };
@@ -5755,7 +6052,8 @@ function renderActivities(id) {
 
     var metaBadges = '';
     if (a.nextDate) {
-      metaBadges += '<span class="tl-next-badge">📅 Наступний: ' + a.nextDate + '</span>';
+      var timePart = a.nextTime ? ' о ' + a.nextTime : '';
+      metaBadges += '<span class="tl-next-badge">📅 Наступний: ' + a.nextDate + timePart + '</span>';
     }
     if (a.task) {
       metaBadges += '<span class="tl-task-badge">🎯 Задача</span>';
@@ -5805,6 +6103,7 @@ function addActivity() {
   var note     = (document.getElementById('actNote')     || {}).value || '';
   var task     = (document.getElementById('actTask')     || {}).value || '';
   var nextDate = (document.getElementById('actNextDate') || {}).value || '';
+  var nextTime = readTimePicker('actNextHour', 'actNextMinute');
   var newStat  = (document.getElementById('actStatusChange') || {}).value || '';
   note = note.trim(); task = task.trim();
 
@@ -5837,7 +6136,8 @@ function addActivity() {
     note: note,
     task: task,
     createdAt: new Date().toISOString(),
-    nextDate: nextDate
+    nextDate: nextDate,
+    nextTime: nextTime
   };
   if (newStat && newStat !== oldStat) {
     activity.statusChange = { from: oldStat, to: newStat };
@@ -5847,10 +6147,11 @@ function addActivity() {
   acts.push(activity);
   saveActivities(currentPartnerId, acts);
 
-  // Оновлюємо дані партнера — nextContact та (якщо змінено) статус
+  // Оновлюємо дані партнера — nextContact, nextTime та (якщо змінено) статус
   if (idx >= 0) {
     var changed = false;
     if (nextDate) { partners[idx].nextContact = nextDate; changed = true; }
+    if (nextDate) { partners[idx].nextTime = nextTime; changed = true; } // оновлюємо час разом з датою (навіть якщо час порожній — скидаємо старий)
     if (newStat && newStat !== oldStat) { partners[idx].status = newStat; changed = true; }
     if (changed) savePartners(partners);
 
@@ -5917,7 +6218,7 @@ function renderInfoTab(p) {
     <div class="info-item"><div class="il">Статус</div><div class="iv">${statusBadge(p.status)}</div></div>
     <div class="info-item"><div class="il">Додано</div><div class="iv">${p.createdAt ? p.createdAt.split('T')[0] : '—'}</div></div>
     <div class="info-item"><div class="il">Тиждень</div><div class="iv">${p.week || '—'}</div></div>
-    <div class="info-item"><div class="il">Наступний контакт</div><div class="iv" style="${nextCls}">${p.nextContact || '—'}</div></div>
+    <div class="info-item"><div class="il">Наступний контакт</div><div class="iv" style="${nextCls}">${p.nextContact || '—'}${p.nextTime ? ' о ' + p.nextTime : ''}</div></div>
     <div class="info-item"><div class="il">Всього активностей</div><div class="iv">${acts.length}</div></div>
     <div class="info-item" style="grid-column:1/-1;"><div class="il">Коментар</div><div class="iv" style="white-space:pre-wrap;">${escHtml(p.comment || '—')}</div></div>
   `;
@@ -5930,6 +6231,7 @@ function fillEditTab(p) {
   document.getElementById('eStatus').value = p.status || 'new';
   document.getElementById('eComment').value = p.comment || '';
   document.getElementById('eNextContact').value = p.nextContact || '';
+  setTimePicker('eNextHour', 'eNextMinute', p.nextTime || '');
   const eAddr = document.getElementById('eAddress');
   if (eAddr) eAddr.value = p.address || '';
   renderEditContactsList(p);
@@ -5990,6 +6292,7 @@ function saveEditPartner() {
   var address = eAddr ? eAddr.value.trim() : '';
   // Автодопис вулиці у назву — тільки коли адреса заповнена
   var name = address ? appendStreetToName(rawName, address) : rawName;
+  var nextTime = readTimePicker('eNextHour', 'eNextMinute');
   // Keep contacts as-is (managed separately via editDeleteContact / editSaveNewRow)
   partners[idx] = Object.assign({}, partners[idx], {
     city:        document.getElementById('eCity').value.trim(),
@@ -5999,6 +6302,7 @@ function saveEditPartner() {
     status:      document.getElementById('eStatus').value,
     comment:     document.getElementById('eComment').value.trim(),
     nextContact: document.getElementById('eNextContact').value,
+    nextTime:    nextTime,
     updatedAt:   new Date().toISOString()
   });
   savePartners(partners);
@@ -6006,6 +6310,7 @@ function saveEditPartner() {
   if (currentPage === 'today') renderToday();
   if (currentPage === 'partners') renderPartners();
   updateTodayBadge();
+  updateReminderBadge();
   showToast('Партнера оновлено ✓', 'success');
 }
 

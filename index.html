@@ -359,6 +359,31 @@ body.dark .stat-hint {
 .stat-card.purple{ border-top-color:var(--purple) !important; }
 .stat-card.green { border-top-color:var(--bolt-green) !important; }
 
+/* Клікабельна stat-card — візуальний натяк на інтерактивність */
+.stat-card.clickable {
+  cursor:pointer;
+  transition:transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-card.clickable:hover {
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(0,0,0,0.08) !important;
+}
+.stat-card.clickable:active { transform:translateY(0); }
+.stat-card.clickable::after {
+  content:''; position:absolute; top:12px; right:14px;
+  width:22px; height:22px; border-radius:50%;
+  background:var(--bg-light); opacity:0.6;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 18 15 12 9 6'/></svg>");
+  background-repeat:no-repeat; background-position:center;
+  transition:opacity 0.15s;
+}
+.stat-card.clickable:hover::after { opacity:1; }
+body.dark .stat-card.clickable::after {
+  background:#0D0D14;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888AA' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='9 18 15 12 9 6'/></svg>");
+  background-repeat:no-repeat; background-position:center;
+}
+
 /* ── SVG NAV ICONS ── */
 .nav-svg { width:18px; height:18px; flex-shrink:0; }
 
@@ -3337,6 +3362,25 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
   </div>
 </div>
 
+<!-- WEEKLY ACTIVATED PARTNERS MODAL — показ хто став активним партнером за тиждень -->
+<div class="modal-overlay" id="weeklyActivatedModal">
+  <div class="modal" style="width:540px;">
+    <div class="modal-header">
+      <div>
+        <h2 style="display:flex;align-items:center;gap:10px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--bolt-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Нові активації за тиждень
+        </h2>
+        <p>Партнери, які отримали статус «активний» за останні 7 днів</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('weeklyActivatedModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="weeklyActivatedList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- PARTNER DETAIL MODAL -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal detail-modal">
@@ -4266,15 +4310,40 @@ function renderToday() {
     meta.innerHTML = '';
   }
 
-  // Обчислюємо тижневий приріст: скільки нових партнерів створено за останні 7 днів.
-  // Використовуємо поле createdAt — воно встановлюється при savePartner у форматі ISO.
-  // Партнери без createdAt (наприклад, імпортовані зі старої системи) не рахуються —
-  // це чесна поведінка, бо ми не знаємо коли саме їх додали у базу.
+  // Обчислюємо тижневий приріст: скільки партнерів отримали статус "Партнер (активний)"
+  // за останні 7 днів. Шукаємо у timeline активностей кожного партнера запис
+  // зі statusChange.to === 'active' за цей період — це і є момент "закриття угоди".
+  // Партнерів, які вже були 'active' до цього тижня, не враховуємо — це саме НОВІ активації.
   var weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   var weekAgoDate = new Date(weekAgoMs).toISOString();
-  var newThisWeek = partners.filter(function(p) {
-    return p.createdAt && p.createdAt >= weekAgoDate;
-  }).length;
+  var newThisWeek = 0;
+  var newActivatedPartners = []; // список для відображення (назва, місто, дата активації)
+  // Також зберігаємо в глобалі для використання з модалки при кліку на картку
+  window._weeklyActivatedPartners = newActivatedPartners;
+  for (var pi = 0; pi < partners.length; pi++) {
+    var pp = partners[pi];
+    var acts = getActivities(pp.id);
+    // Шукаємо першу активацію за цей тиждень (перебір з кінця — знаходимо найсвіжіший запис)
+    for (var ai = acts.length - 1; ai >= 0; ai--) {
+      var a = acts[ai];
+      if (a.statusChange && a.statusChange.to === 'active'
+          && a.createdAt && a.createdAt >= weekAgoDate) {
+        newThisWeek++;
+        newActivatedPartners.push({
+          id: pp.id,
+          name: pp.name,
+          city: pp.city || '',
+          activatedAt: a.createdAt
+        });
+        break; // одна активація на партнера достатньо — інакше подвійний відлік
+      }
+    }
+  }
+  // Сортуємо за датою активації — найсвіжіші нагорі
+  newActivatedPartners.sort(function(a, b) { return b.activatedAt.localeCompare(a.activatedAt); });
+
+  // Зберігаємо для popover (клік по картці → список партнерів)
+  window.__weeklyActivatedPartners = newActivatedPartners;
 
   // Тепер замість 4 карток маємо 2 більших. Кожна картка несе свою унікальну роль:
   // "Прострочено" — реактивна метрика (що треба зробити сьогодні),
@@ -4303,7 +4372,10 @@ function renderToday() {
       cls: 'green',
       arrow: newThisWeek > 0 ? '↗' : '',
       icon: iconGrowth,
-      hint: t('home.statsWeeklyHint')
+      hint: newThisWeek > 0
+            ? (currentLang === 'en' ? 'new partners activated' : 'нових активованих партнерів')
+            : (currentLang === 'en' ? 'no new activations yet' : 'поки без активацій'),
+      onClick: newThisWeek > 0 ? 'showWeeklyActivatedModal()' : null
     }
   ];
   const sg = document.getElementById('statGrid');
@@ -4313,12 +4385,14 @@ function renderToday() {
     sg.className = statDefs.length === 2 ? 'stat-grid stat-grid-2' : 'stat-grid';
     sg.innerHTML = statDefs.map(function(s) {
       var cardClass = 'stat-card ' + s.cls + (statDefs.length === 2 ? ' big' : '');
+      if (s.onClick) cardClass += ' clickable';
       // Додаткова обгортка .stat-icon-wrap створює біле коло з тонкою кольоровою
       // рамкою — це дає іконці "чисту" сцену незалежно від кольорового фону картки.
       var iconHtml = s.icon
         ? '<div class="stat-icon-wrap"><div class="stat-icon">' + s.icon + '</div></div>'
         : '';
-      return '<div class="' + cardClass + '">' +
+      var clickAttr = s.onClick ? ' onclick="' + s.onClick + '" role="button" tabindex="0"' : '';
+      return '<div class="' + cardClass + '"' + clickAttr + '>' +
         iconHtml +
         '<div class="stat-label">' + s.label + '</div>' +
         '<div class="stat-value">' + s.value + (s.arrow ? ' <span style="font-size:22px;opacity:0.6;">' + s.arrow + '</span>' : '') + '</div>' +
@@ -4335,6 +4409,55 @@ function renderToday() {
 
   // ── Partners mini-table (last 10 by creation) ──
   renderDashPartnersTable(partners, today);
+}
+
+// ── WEEKLY ACTIVATED PARTNERS MODAL ──────────────────────────
+// Відкриває модалку зі списком партнерів, які отримали статус "активний"
+// за останні 7 днів. Дані беруться з глобальної змінної, яка наповнюється
+// під час рендерингу картки "Приріст за тиждень".
+function showWeeklyActivatedModal() {
+  var list = window._weeklyActivatedPartners || [];
+  var container = document.getElementById('weeklyActivatedList');
+  if (!container) return;
+
+  if (list.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">'
+      + '<div style="font-size:42px;margin-bottom:12px;opacity:0.4;">📋</div>'
+      + '<p>За цей тиждень активацій ще не було</p>'
+      + '</div>';
+    openModal('weeklyActivatedModal');
+    return;
+  }
+
+  // Сортуємо за датою активації — найсвіжіші зверху
+  var sorted = list.slice().sort(function(a, b) {
+    return (b.activatedAt || '').localeCompare(a.activatedAt || '');
+  });
+
+  container.innerHTML = sorted.map(function(p) {
+    var activatedDate = (p.activatedAt || '').split('T')[0];
+    var daysAgo = '';
+    if (p.activatedAt) {
+      var diffMs = Date.now() - new Date(p.activatedAt).getTime();
+      var diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+      if (diffDays === 0) daysAgo = 'сьогодні';
+      else if (diffDays === 1) daysAgo = 'вчора';
+      else daysAgo = diffDays + ' дн. тому';
+    }
+    return '<div class="weekly-activated-row" onclick="closeModal(\'weeklyActivatedModal\'); openDetail(\'' + p.id + '\');">'
+      + '  <div class="weekly-activated-icon">✓</div>'
+      + '  <div class="weekly-activated-main">'
+      + '    <div class="weekly-activated-name">' + escHtml(p.name || 'Партнер') + '</div>'
+      + '    <div class="weekly-activated-city">' + escHtml(p.city || '—') + '</div>'
+      + '  </div>'
+      + '  <div class="weekly-activated-date">'
+      + '    <div class="weekly-activated-date-main">' + activatedDate + '</div>'
+      + '    <div class="weekly-activated-date-sub">' + daysAgo + '</div>'
+      + '  </div>'
+      + '</div>';
+  }).join('');
+
+  openModal('weeklyActivatedModal');
 }
 
 // ── FUNNEL DETAILS PANEL ──────────────────────────────────────
@@ -6427,13 +6550,34 @@ function saveEditPartner() {
   // Автодопис вулиці у назву — тільки коли адреса заповнена
   var name = address ? appendStreetToName(rawName, address) : rawName;
   var nextTime = readTimePicker('eNextHour', 'eNextMinute');
+  var newStatus = document.getElementById('eStatus').value;
+  var oldStatus = partners[idx].status;
+
+  // Якщо статус змінився — створюємо запис активності з statusChange,
+  // щоб метрика "Приріст за тиждень" та інша аналітика по воронці
+  // підхопили цю зміну. Так само як це робить addActivity().
+  if (newStatus && newStatus !== oldStatus) {
+    var acts = getActivities(currentPartnerId);
+    acts.push({
+      id: 'a_' + Date.now(),
+      note: '',
+      task: '',
+      createdAt: new Date().toISOString(),
+      nextDate: '',
+      nextTime: '',
+      statusChange: { from: oldStatus, to: newStatus },
+      source: 'edit-tab' // позначка, щоб було видно звідки зміна
+    });
+    saveActivities(currentPartnerId, acts);
+  }
+
   // Keep contacts as-is (managed separately via editDeleteContact / editSaveNewRow)
   partners[idx] = Object.assign({}, partners[idx], {
     city:        document.getElementById('eCity').value.trim(),
     name:        name,
     address:     address,
     locs:        parseInt(document.getElementById('eLocs').value) || 1,
-    status:      document.getElementById('eStatus').value,
+    status:      newStatus,
     comment:     document.getElementById('eComment').value.trim(),
     nextContact: document.getElementById('eNextContact').value,
     nextTime:    nextTime,
@@ -6445,7 +6589,12 @@ function saveEditPartner() {
   if (currentPage === 'partners') renderPartners();
   updateTodayBadge();
   updateReminderBadge();
-  showToast('Партнера оновлено ✓', 'success');
+  // Якщо статус змінився — повідомляємо про це в toast
+  if (newStatus && newStatus !== oldStatus) {
+    showToast('Партнера оновлено, статус: ' + (STATUS_LABELS[newStatus] || newStatus) + ' ✓', 'success');
+  } else {
+    showToast('Партнера оновлено ✓', 'success');
+  }
 }
 
 function deletePartner() {

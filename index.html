@@ -2435,6 +2435,35 @@ select.f-input option { background:var(--white); }
 }
 body.dark .gcal-checkbox-row { background:rgba(94,158,255,0.08); border-color:rgba(94,158,255,0.22); }
 
+/* ── ЗГОРТУВАНА СЕКЦІЯ "ПЕРША АКТИВНІСТЬ" у формі нового партнера ── */
+.p-first-activity {
+  margin:14px 0; border-radius:var(--radius);
+  border:1.5px dashed rgba(46,211,138,0.4); background:rgba(46,211,138,0.04);
+  overflow:hidden; transition:all 0.18s;
+}
+.p-first-activity:has(.p-first-activity-body[style*="display:none"]) {
+  background:rgba(46,211,138,0.02);
+}
+.p-first-activity-toggle {
+  width:100%; display:flex; align-items:center; gap:10px;
+  padding:12px 16px; background:transparent; border:0; cursor:pointer;
+  font-size:13px; font-weight:700; color:var(--bolt-green);
+  text-align:left; transition:background 0.15s;
+}
+.p-first-activity-toggle:hover { background:rgba(46,211,138,0.06); }
+.p-first-activity-toggle .pfat-icon {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; font-size:14px; color:var(--bolt-green);
+  transition:transform 0.18s ease;
+}
+.p-first-activity-toggle.open .pfat-icon { transform:rotate(90deg); }
+.p-first-activity-body {
+  padding:6px 16px 16px 16px;
+  border-top:1px dashed rgba(46,211,138,0.3);
+}
+body.dark .p-first-activity { background:rgba(46,211,138,0.06); border-color:rgba(46,211,138,0.3); }
+body.dark .p-first-activity-toggle:hover { background:rgba(46,211,138,0.1); }
+
 /* ── TIME PICKER (Година + Хвилина) ── */
 .time-picker-row {
   display:grid; grid-template-columns:1fr 1fr; gap:8px;
@@ -3329,13 +3358,68 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
       </div>
       <div class="form-row single">
         <div>
-          <div class="f-label">Початковий коментар / нотатка</div>
-          <textarea class="f-input" id="pComment" placeholder="Перший контакт, загальна інформація..."></textarea>
+          <div class="f-label">Загальна інформація <span style="color:var(--text-muted);font-weight:500;">(коротко)</span></div>
+          <textarea class="f-input" id="pComment" rows="2" placeholder="Опис закладу, особливості..." style="min-height:54px; max-height:120px;"></textarea>
         </div>
       </div>
+
+      <!-- Секція "Перша активність" — згортувана. За замовчуванням прихована,
+           щоб не перевантажувати форму. Клік по заголовку розгортає її. -->
+      <div class="p-first-activity">
+        <button type="button" class="p-first-activity-toggle" id="pFirstActToggle" onclick="pToggleFirstActivity()">
+          <span class="pfat-icon" id="pFirstActChevron">▸</span>
+          <span class="pfat-text">Додати першу активність <span style="color:var(--text-muted);font-weight:500;font-size:11.5px;">(опціонально)</span></span>
+        </button>
+        <div class="p-first-activity-body" id="pFirstActBody" style="display:none;">
+          <!-- Нотатка активності -->
+          <div class="f-label" style="margin-bottom:6px;">Нотатка</div>
+          <textarea class="f-input" id="pActNote"
+            placeholder="Що відбулось під час першого контакту?"
+            rows="2" style="min-height:54px; margin-bottom:12px;"></textarea>
+
+          <!-- Задача + Дата -->
+          <div class="f-label" style="margin-bottom:6px;">Задача до наступного контакту</div>
+          <div class="act-task-row">
+            <input class="f-input" id="pActTask"
+              placeholder="Що потрібно зробити / про що запитати?"
+              oninput="pValidateActTaskDatePair()"
+              style="flex:1;">
+            <input class="f-input act-date-input" type="date" id="pActNextDate"
+              oninput="pValidateActTaskDatePair()"
+              onchange="pValidateActTaskDatePair()"
+              title="Дата наступного контакту">
+          </div>
+
+          <!-- Час (опційний) -->
+          <div class="time-picker-wrap" style="margin-top:8px;">
+            <span style="font-size:11px;color:var(--text-muted);font-weight:600;white-space:nowrap;">🕐 Час:</span>
+            <div class="time-picker-row" style="flex:1;max-width:220px;">
+              <select class="f-input" id="pActNextHour"><option value="">—</option></select>
+              <input class="f-input" id="pActNextMinute" type="number" min="0" max="59" step="1" placeholder="хв (0-59)" inputmode="numeric">
+            </div>
+            <button type="button" class="time-picker-clear" onclick="clearTimePicker('pActNextHour','pActNextMinute')" title="Очистити час">✕</button>
+          </div>
+
+          <!-- Підказка валідації -->
+          <div id="pTaskDateHint" class="task-date-hint" style="display:none;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Для задачі обов'язково вкажіть дату наступного контакту</span>
+          </div>
+
+          <!-- Google Calendar checkbox -->
+          <label class="gcal-checkbox-row" id="pActGcalCheckboxWrap" style="margin-top:10px; display:none;">
+            <input type="checkbox" id="pActAddToGcal">
+            <span class="gcal-checkbox-text">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Одразу додати в Google Calendar
+            </span>
+          </label>
+        </div>
+      </div>
+
       <div class="form-row">
         <div>
-          <div class="f-label">Наступний контакт</div>
+          <div class="f-label">Наступний контакт <span style="color:var(--text-muted);font-weight:500;font-size:11px;">(якщо без активності)</span></div>
           <input class="f-input" type="date" id="pNextContact">
           <div class="time-picker-label-row" style="margin-top:8px;">
             <div class="f-label">Час <span style="color:var(--text-muted);font-weight:500;">(опційно)</span></div>
@@ -3347,7 +3431,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
             </div>
             <button type="button" class="time-picker-clear" onclick="clearTimePicker('pNextHour','pNextMinute')" title="Очистити час">✕</button>
           </div>
-          <div class="time-picker-hint">Якщо вкажете час — прийде нагадування у момент настання</div>
+          <div class="time-picker-hint">Якщо заповнили «Перша активність» вище — ці поля ігноруються</div>
         </div>
         <div>
           <div class="f-label">Тиждень (авто)</div>
@@ -4239,6 +4323,7 @@ function initApp() {
     populateTimePicker('pNextHour',   'pNextMinute');
     populateTimePicker('eNextHour',   'eNextMinute');
     populateTimePicker('actNextHour', 'actNextMinute');
+    populateTimePicker('pActNextHour', 'pActNextMinute'); // блок "Перша активність" у формі нового партнера
     // Запускаємо цикл перевірки нагадувань (раз на 30 сек)
     startReminderLoop();
     // Оновлюємо бейдж нагадувань при старті
@@ -5816,6 +5901,8 @@ function openAddPartner() {
   document.getElementById('pStatus').value = 'new';
   document.getElementById('pWeek').value = getWeekLabel();
   clearTimePicker('pNextHour', 'pNextMinute');
+  // Скидаємо поля "Перша активність" та згортаємо блок за замовчуванням
+  pResetFirstActivity();
   // Скидаємо буфер контактів — нова модалка починається з чистого аркуша
   pNewPartnerContacts = [];
   pRenderContacts();
@@ -6048,6 +6135,61 @@ function startReminderLoop() {
   reminderIntervalId = setInterval(checkReminders, 30000);
 }
 
+// ── ПЕРША АКТИВНІСТЬ У ФОРМІ НОВОГО ПАРТНЕРА ────────────────
+// Розгортає/згортає блок з полями активності
+function pToggleFirstActivity() {
+  var body = document.getElementById('pFirstActBody');
+  var btn = document.getElementById('pFirstActToggle');
+  if (!body || !btn) return;
+  var isOpen = body.style.display !== 'none';
+  if (isOpen) {
+    body.style.display = 'none';
+    btn.classList.remove('open');
+  } else {
+    body.style.display = 'block';
+    btn.classList.add('open');
+  }
+}
+
+// Валідатор для поля активності у формі нового партнера.
+// Дублює логіку validateTaskDatePair, але працює з полями префіксу "p".
+function pValidateActTaskDatePair() {
+  var taskEl = document.getElementById('pActTask');
+  var dateEl = document.getElementById('pActNextDate');
+  var hintEl = document.getElementById('pTaskDateHint');
+  var gcalWrap = document.getElementById('pActGcalCheckboxWrap');
+  if (!taskEl || !dateEl) return;
+
+  var hasTask = taskEl.value.trim().length > 0;
+  var hasDate = !!dateEl.value;
+  var needsDate = hasTask && !hasDate;
+
+  dateEl.classList.toggle('date-required-empty', needsDate);
+  if (hintEl) hintEl.style.display = needsDate ? 'flex' : 'none';
+  if (gcalWrap) gcalWrap.style.display = (hasTask && hasDate) ? 'flex' : 'none';
+}
+
+// Очистка полів першої активності (для openAddPartner)
+function pResetFirstActivity() {
+  var ids = ['pActNote','pActTask','pActNextDate'];
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  clearTimePicker('pActNextHour','pActNextMinute');
+  var gcalWrap = document.getElementById('pActGcalCheckboxWrap');
+  if (gcalWrap) gcalWrap.style.display = 'none';
+  var gcalChk = document.getElementById('pActAddToGcal');
+  if (gcalChk) gcalChk.checked = false;
+  var hint = document.getElementById('pTaskDateHint');
+  if (hint) hint.style.display = 'none';
+  // Згортаємо блок за замовчуванням
+  var body = document.getElementById('pFirstActBody');
+  var btn = document.getElementById('pFirstActToggle');
+  if (body) body.style.display = 'none';
+  if (btn) btn.classList.remove('open');
+}
+
 function extractStreetName(address) {
   if (!address) return '';
   var s = String(address).trim();
@@ -6108,24 +6250,77 @@ function savePartner() {
   } else {
     const id = 'p_' + Date.now();
     const comment = document.getElementById('pComment').value.trim();
+
+    // Читаємо поля "Перша активність". Якщо хоч одне заповнене — ця секція
+    // стає джерелом правди для nextContact/nextTime (перекриває запасні поля).
+    const actNote     = (document.getElementById('pActNote')     || {value:''}).value.trim();
+    const actTask     = (document.getElementById('pActTask')     || {value:''}).value.trim();
+    const actNextDate = (document.getElementById('pActNextDate') || {value:''}).value;
+    const actNextTime = readTimePicker('pActNextHour', 'pActNextMinute');
+    const actGcal     = !!(document.getElementById('pActAddToGcal') || {}).checked;
+    const hasFirstActivity = !!(actNote || actTask || actNextDate);
+
+    // Валідація: якщо є задача, то дата обов'язкова
+    if (actTask && !actNextDate) {
+      showToast('Для задачі вкажіть дату наступного контакту', 'error');
+      pValidateActTaskDatePair();
+      var d = document.getElementById('pActNextDate');
+      if (d) d.focus();
+      return;
+    }
+
+    // Фінальні nextContact і nextTime: з блоку активності, якщо він заповнений,
+    // інакше — зі запасних полів (старий варіант для коли не хочеться активності).
+    const finalNextContact = hasFirstActivity
+      ? actNextDate
+      : document.getElementById('pNextContact').value;
+    const finalNextTime = hasFirstActivity
+      ? actNextTime
+      : nextTime;
+
     // Забираємо контакти з тимчасового буферу в об'єкт нового партнера
     const newPartner = {
       id, city, name, address,
       locs: parseInt(document.getElementById('pLocs').value) || 1,
-      contacts: pNewPartnerContacts.slice(), // копія масиву, а не посилання
-      lpr: contactsToLpr(pNewPartnerContacts), // legacy формат для зворотної сумісності
+      contacts: pNewPartnerContacts.slice(),
+      lpr: contactsToLpr(pNewPartnerContacts),
       status: document.getElementById('pStatus').value,
       comment,
-      nextContact: document.getElementById('pNextContact').value,
-      nextTime: nextTime,
+      nextContact: finalNextContact,
+      nextTime: finalNextTime,
       week: getWeekLabel(),
       createdAt: new Date().toISOString()
     };
     partners.push(newPartner);
-    // Auto-add first activity if comment provided
-    if (comment) {
+
+    // Створюємо першу активність, якщо заповнений блок "Перша активність"
+    // АБО якщо є коментар (для зворотної сумісності зі старою поведінкою).
+    if (hasFirstActivity) {
       const acts = getActivities(id);
-      acts.push({ id:'a_'+Date.now(), note: comment, createdAt: new Date().toISOString(), nextDate: document.getElementById('pNextContact').value });
+      acts.push({
+        id: 'a_' + Date.now(),
+        note: actNote,
+        task: actTask,
+        createdAt: new Date().toISOString(),
+        nextDate: actNextDate,
+        nextTime: actNextTime
+      });
+      saveActivities(id, acts);
+
+      // Google Calendar — якщо стояла галочка і є і задача, і дата
+      if (actGcal && actTask && actNextDate) {
+        openInGoogleCalendar(name, actTask, actNextDate, actNextTime);
+      }
+    } else if (comment) {
+      // Fallback: якщо немає активності, але є коментар — створюємо "нотатку"
+      // (стара поведінка, щоб не ламати кейс "додав партнера + короткий коментар").
+      const acts = getActivities(id);
+      acts.push({
+        id: 'a_' + Date.now(),
+        note: comment,
+        createdAt: new Date().toISOString(),
+        nextDate: document.getElementById('pNextContact').value
+      });
       saveActivities(id, acts);
     }
   }

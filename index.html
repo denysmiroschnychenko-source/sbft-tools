@@ -3377,6 +3377,22 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
             placeholder="Що відбулось під час першого контакту?"
             rows="2" style="min-height:54px; margin-bottom:12px;"></textarea>
 
+          <!-- Зміна статусу — опційне поле. За замовчуванням "Залишити без змін" =
+               береться статус з основної форми вище. Якщо обрати інший — він стане
+               статусом партнера, а зміна зафіксується в активності як statusChange. -->
+          <div class="f-label" style="margin-bottom:6px;">Статус партнера <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(можна змінити при необхідності)</span></div>
+          <select class="f-input" id="pActStatusChange" style="margin-bottom:12px;">
+            <option value="">— Залишити без змін —</option>
+            <option value="new">🔵 Новий</option>
+            <option value="nego">🟡 В переговорах</option>
+            <option value="menu">🍽️ Формування меню</option>
+            <option value="form">📝 Заповнення форми</option>
+            <option value="contract">✍️ Підписання угоди</option>
+            <option value="active">✅ Партнер (активний)</option>
+            <option value="pause">⚪ На паузі</option>
+            <option value="decline">🔴 Відмова</option>
+          </select>
+
           <!-- Задача + Дата -->
           <div class="f-label" style="margin-bottom:6px;">Задача до наступного контакту</div>
           <div class="act-task-row">
@@ -6177,7 +6193,7 @@ function pValidateActTaskDatePair() {
 
 // Очистка полів першої активності (для openAddPartner)
 function pResetFirstActivity() {
-  var ids = ['pActNote','pActTask','pActNextDate'];
+  var ids = ['pActNote','pActTask','pActNextDate','pActStatusChange'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
@@ -6263,8 +6279,9 @@ function savePartner() {
     const actTask     = (document.getElementById('pActTask')     || {value:''}).value.trim();
     const actNextDate = (document.getElementById('pActNextDate') || {value:''}).value;
     const actNextTime = readTimePicker('pActNextHour', 'pActNextMinute');
+    const actNewStat  = (document.getElementById('pActStatusChange') || {value:''}).value;
     const actGcal     = !!(document.getElementById('pActAddToGcal') || {}).checked;
-    const hasFirstActivity = !!(actNote || actTask || actNextDate);
+    const hasFirstActivity = !!(actNote || actTask || actNextDate || actNewStat);
 
     // Валідація: якщо є задача, то дата обов'язкова
     if (actTask && !actNextDate) {
@@ -6284,13 +6301,19 @@ function savePartner() {
       ? actNextTime
       : nextTime;
 
+    // Базовий статус з основного селекту форми
+    const baseStatus = document.getElementById('pStatus').value;
+    // Якщо у блоці "Перша активність" обрали інший статус — він стає фінальним
+    // для партнера, а зміна буде зафіксована у statusChange першої активності.
+    const finalStatus = (actNewStat && actNewStat !== baseStatus) ? actNewStat : baseStatus;
+
     // Забираємо контакти з тимчасового буферу в об'єкт нового партнера
     const newPartner = {
       id, city, name, address,
       locs: parseInt(document.getElementById('pLocs').value) || 1,
       contacts: pNewPartnerContacts.slice(),
       lpr: contactsToLpr(pNewPartnerContacts),
-      status: document.getElementById('pStatus').value,
+      status: finalStatus,
       comment,
       nextContact: finalNextContact,
       nextTime: finalNextTime,
@@ -6303,14 +6326,20 @@ function savePartner() {
     // АБО якщо є коментар (для зворотної сумісності зі старою поведінкою).
     if (hasFirstActivity) {
       const acts = getActivities(id);
-      acts.push({
+      const firstAct = {
         id: 'a_' + Date.now(),
         note: actNote,
         task: actTask,
         createdAt: new Date().toISOString(),
         nextDate: actNextDate,
         nextTime: actNextTime
-      });
+      };
+      // Якщо статус змінили — фіксуємо це в активності.
+      // from: baseStatus (як вибрано в основній формі), to: actNewStat (що обрано в блоці активності).
+      if (actNewStat && actNewStat !== baseStatus) {
+        firstAct.statusChange = { from: baseStatus, to: actNewStat };
+      }
+      acts.push(firstAct);
       saveActivities(id, acts);
 
       // Google Calendar — якщо стояла галочка і є і задача, і дата

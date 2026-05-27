@@ -5630,6 +5630,12 @@ function renderDashPartnersTable(partners, today) {
       ? '<div style="font-size:11px;color:#D4A017;margin-top:3px;font-weight:500;">📌 ' + escHtml(lastAct.task) + '</div>'
       : '';
 
+    // Якщо у задачі вказано конкретний час — показуємо його під датою
+    // як ненавʼязливу підказку (формат співпадає з рештою застосунку: "о HH:MM").
+    const timeHint = p.nextTime
+      ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-weight:500;">🕐 ' + escHtml(p.nextTime) + '</div>'
+      : '';
+
     return '<tr onclick="openDetail(\'' + p.id + '\')">' +
       '<td>' +
         '<div class="td-name">' + escHtml(p.name) + '</div>' +
@@ -5638,7 +5644,7 @@ function renderDashPartnersTable(partners, today) {
       '<td class="td-city">' + escHtml(p.city) + '</td>' +
       '<td>' + statusBadge(p.status) + '</td>' +
       '<td class="td-date">' + lastDate + '</td>' +
-      '<td class="td-next today">' + p.nextContact + '</td>' +
+      '<td class="td-next today">' + p.nextContact + timeHint + '</td>' +
     '</tr>';
   }).join('');
 }
@@ -6533,16 +6539,41 @@ function addActivity() {
   // Оновлюємо дані партнера — nextContact, nextTime та (якщо змінено) статус
   if (idx >= 0) {
     var changed = false;
-    if (nextDate) { partners[idx].nextContact = nextDate; changed = true; }
-    if (nextDate) { partners[idx].nextTime = nextTime; changed = true; } // оновлюємо час разом з датою (навіть якщо час порожній — скидаємо старий)
+    if (nextDate) {
+      // Нова дата вказана — записуємо її разом з часом (час може бути порожній)
+      partners[idx].nextContact = nextDate;
+      partners[idx].nextTime = nextTime;
+      changed = true;
+    } else {
+      // Дату не вказали — це означає що користувач закрив попередню задачу
+      // (просто залишив нотатку чи змінив статус). Чистимо стару дату/час,
+      // інакше "Наступний контакт" і далі висить як прострочений хвіст.
+      // Чистимо тільки якщо там було щось — щоб не плодити зайвих записів в БД.
+      if (partners[idx].nextContact || partners[idx].nextTime) {
+        partners[idx].nextContact = '';
+        partners[idx].nextTime = '';
+        changed = true;
+      }
+    }
     if (newStat && newStat !== oldStat) { partners[idx].status = newStat; changed = true; }
     if (changed) savePartners(partners);
 
     // Синхронізуємо поля у вкладці "Редагувати", щоб вона теж знала про зміни
     var editNextEl = document.getElementById('eNextContact');
-    if (editNextEl && nextDate) editNextEl.value = nextDate;
+    if (editNextEl) {
+      // Якщо є нова дата — підставляємо; якщо ні — синхронізуємо з очищеним станом партнера
+      editNextEl.value = nextDate ? nextDate : (partners[idx].nextContact || '');
+    }
+    if (!nextDate && !partners[idx].nextTime) {
+      // Дата очищена — також скидаємо пікер часу у вкладці "Редагувати"
+      if (typeof clearTimePicker === 'function') clearTimePicker('eNextHour', 'eNextMinute');
+    }
     var editStatusEl = document.getElementById('eStatus');
     if (editStatusEl && newStat) editStatusEl.value = newStat;
+
+    // Інформаційна вкладка теж читає p.nextContact/p.nextTime — перерендеримо її
+    // щоб поле "Наступний контакт" відразу відобразило очищення (або нову дату).
+    if (typeof renderInfoTab === 'function') renderInfoTab(partners[idx]);
 
     // Оновлюємо також шапку модалки (місто + статус-бейдж + ім'я)
     // щоб новий статус одразу показувався над іменем партнера

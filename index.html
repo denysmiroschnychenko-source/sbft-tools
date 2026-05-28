@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bolt Food CRM</title>
+<title>Food Tech Sales Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -12,31 +12,130 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Inter Variable з усіма weights + optical sizing (opsz) — як InterVariable у Kalep.
+   Через Google Fonts CSS2 (безпечно, з CDN). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap');
 
 :root {
-  --bolt-green: #2DDE98;
-  --bolt-green-hover: #24b97d;
-  --bolt-green-dim: rgba(45,222,152,0.10);
-  --bolt-dark: #2F3337;
-  --bg-light: #F2F4F5;
-  --white: #FFFFFF;
-  --border-color: #E2E4E8;
-  --text-main: #2F3337;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
-  --red: #FF5E5E;
-  --yellow: #F5C542;
+  /* ─────────────────────────────────────────────────────────────────
+     KALEP DESIGN TOKENS — синя палітра (Tailwind blue scale адаптована
+     під структуру Kalep core green-1..12). Beredu від blue-50 до blue-950.
+     Імена збережено в стилі Kalep: --color-core-blue-N — як в оригіналі.
+     ──────────────────────────────────────────────────────────────── */
+  --color-core-white: #ffffff;
+  --color-core-black: #000000;
+  --color-core-brand-blue: #2563EB;
+  --color-core-brand-blue-dark: #0B1B3A;
+
+  --color-core-blue-1: rgba(252, 253, 255, 1);
+  --color-core-blue-3: rgba(239, 246, 255, 1);   /* tint subtle */
+  --color-core-blue-5: rgba(219, 234, 254, 1);   /* tint mid */
+  --color-core-blue-7: rgba(147, 197, 253, 1);
+  --color-core-blue-9: rgba(37, 99, 235, 1);     /* primary action */
+  --color-core-blue-10: rgba(29, 78, 216, 1);    /* pressed */
+  --color-core-blue-11: rgba(30, 64, 175, 1);    /* text-on-light */
+  --color-core-blue-12: rgba(15, 23, 70, 1);     /* deep ink */
+
+  /* Sage (нейтрали) — як у Kalep, прохолодні відтінки */
+  --color-core-sage-1: rgba(251, 253, 252, 1);
+  --color-core-sage-3: rgba(238, 241, 240, 1);
+  --color-core-sage-5: rgba(222, 226, 225, 1);
+  --color-core-sage-7: rgba(203, 207, 206, 1);
+  --color-core-sage-9: rgba(134, 142, 139, 1);
+  --color-core-sage-11: rgba(95, 101, 99, 1);
+  --color-core-sage-12: rgba(25, 31, 28, 1);
+
+  --color-core-red-3: rgba(255, 234, 234, 1);
+  --color-core-red-9: rgba(222, 25, 41, 1);
+  --color-core-red-10: rgba(206, 0, 25, 1);
+
+  --color-core-yellow-3: rgba(255, 240, 197, 1);
+  --color-core-yellow-9: rgba(255, 178, 0, 1);
+
+  --color-core-black-alpha-3: rgba(0, 0, 0, 0.06);
+  --color-core-black-alpha-5: rgba(0, 0, 0, 0.12);
+  --color-core-black-alpha-9: rgba(0, 0, 0, 0.45);
+  --color-core-black-alpha-12: rgba(0, 0, 0, 0.88);
+
+  /* ── Semantic tokens — light theme ── */
+  --color-layer-floor-0: #ffffff;
+  --color-layer-floor-0-grouped: rgba(238, 241, 240, 1);
+  --color-layer-floor-1: #ffffff;
+  --color-layer-floor-2: #ffffff;
+  --color-layer-surface: rgba(0, 30, 70, 0.05);
+
+  --color-content-primary: rgba(25, 31, 28, 1);
+  --color-content-secondary: rgba(0, 10, 20, 0.63);
+  --color-content-tertiary: rgba(0, 15, 30, 0.47);
+  --color-content-action-primary: rgba(29, 78, 216, 0.94);    /* синій активного тексту */
+  --color-content-action-secondary: rgba(30, 64, 175, 0.83);
+  --color-content-danger-primary: rgba(173, 0, 14, 0.94);
+  --color-content-warning-primary: rgba(158, 91, 0, 1);
+  --color-content-positive-primary: rgba(0, 112, 66, 0.92);
+
+  --color-bg-neutral-primary: rgba(14, 16, 20, 1);
+  --color-bg-neutral-secondary: rgba(0, 20, 45, 0.06);          /* hover нейтральний */
+  --color-bg-action-primary: rgba(37, 99, 235, 1);              /* PRIMARY BLUE */
+  --color-bg-action-secondary: rgba(37, 99, 235, 0.09);         /* tint для active state */
+  --color-bg-active-action-primary: rgba(29, 78, 216, 1);
+  --color-bg-danger-primary: rgba(222, 25, 41, 1);
+  --color-bg-danger-secondary: rgba(255, 0, 0, 0.08);
+  --color-bg-warning-primary: rgba(255, 178, 0, 1);
+
+  --color-border-separator: rgba(0, 20, 45, 0.08);
+  --color-border-strong: rgba(0, 20, 45, 0.18);
+
+  /* ── Dimensions, radius, shadows ── */
+  --corner-radius-xs: 0.25rem;
+  --corner-radius-s: 0.5rem;
+  --corner-radius-m: 0.75rem;
+  --corner-radius-l: 1rem;
+  --corner-radius-xl: 1.5rem;
+  --corner-radius-full: 600rem;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.10);
+  --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* ─────────────────────────────────────────────────────────────────
+     LEGACY-CHANNEL: старі імена змінних — щоб ~500 існуючих CSS-правил
+     підхопили нову синю тему БЕЗ переписування. Просто пересічення.
+     ──────────────────────────────────────────────────────────────── */
+  --bolt-green: var(--color-bg-action-primary);          /* primary action -> blue-9 */
+  --bolt-green-hover: var(--color-bg-active-action-primary); /* pressed -> blue-10 */
+  --bolt-green-dim: var(--color-bg-action-secondary);    /* tint -> blue с альфа 9% */
+  --bolt-dark: var(--color-content-primary);
+  --bg-light: var(--color-layer-floor-0-grouped);
+  --white: var(--color-layer-floor-0);
+  --border-color: var(--color-border-separator);
+  --text-main: var(--color-content-primary);
+  --text-secondary: var(--color-content-secondary);
+  --text-muted: var(--color-content-tertiary);
+  --red: var(--color-bg-danger-primary);
+  --yellow: var(--color-bg-warning-primary);
   --blue: #5E9EFF;
   --purple: #A374FF;
   --orange: #FF8C42;
   --radius: 16px;
   --radius-sm: 8px;
-  --shadow: 0 4px 20px rgba(0,0,0,0.05);
-  --shadow-md: 0 8px 32px rgba(0,0,0,0.08);
+  --shadow: var(--shadow-md);
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--bg-light); color:var(--text-main); font-family:'Inter',-apple-system,sans-serif; min-height:100vh; overflow-x:hidden; font-size:14px; }
+body {
+  background:var(--bg-light);
+  color:var(--text-main);
+  /* Inter Variable з оптичним розміром від Kalep: cv03/cv04 — альтернативні
+     гліфи l/i/r/etc. (точкова l, без хвостика); tnum — табличні цифри. */
+  font-family:'Inter','InterVariable',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-feature-settings:'cv03','cv04','liga' 1,'calt' 1;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  min-height:100vh;
+  overflow-x:hidden;
+  font-size:14px;
+  letter-spacing:-0.006em;
+}
 
 ::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
@@ -115,43 +214,95 @@ body.dark .pass-strength { background:#252535; }
 #app { display:none; height:100vh; flex-direction:row; }
 
 /* ── SIDEBAR ── */
+/* ─────────────────────────────────────────────────────────────────
+   SIDEBAR — Kalep style
+   • 248px ширина, білий фон (floor-1), правий border-separator
+   • Logo block: фіксована висота 76px, з border-bottom
+   • Logo icon: 40×40, brand-blue, corner-radius-m (12px)
+   • Nav items: gap 12px, padding 12px 14px, corner-radius-m
+       active = bg-action-secondary + content-action-primary
+       hover  = bg-neutral-secondary
+   • Pill badges (corner-radius-full)
+   ──────────────────────────────────────────────────────────────── */
 .sidebar {
-  width:240px; min-width:240px;
-  background:var(--white) !important;
-  border-right:1px solid var(--border-color) !important;
-  display:flex; flex-direction:column; padding:20px 0;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.02);
+  width:248px; min-width:248px;
+  background:var(--color-layer-floor-1) !important;
+  border-right:1px solid var(--color-border-separator) !important;
+  display:flex; flex-direction:column; padding:0;
+  box-shadow:none;
 }
 .sidebar-logo {
-  padding:0 20px 20px;
-  display:flex; align-items:center; gap:10px;
-  border-bottom:1px solid var(--border-color);
+  height:76px; flex-shrink:0;
+  padding:0 22px;
+  display:flex; align-items:center; gap:12px;
+  border-bottom:1px solid var(--color-border-separator);
 }
 .sidebar-logo .bolt-icon {
-  width:36px; height:36px; background:var(--bolt-green); border-radius:10px;
+  width:40px; height:40px;
+  background:var(--color-bg-action-primary);
+  border-radius:var(--corner-radius-m);
   display:flex; align-items:center; justify-content:center;
-  font-size:16px; font-weight:800; color:#fff;
+  flex-shrink:0;
+  color:#fff;
 }
-.sidebar-logo h2 { font-size:15px; font-weight:700; color:var(--bolt-dark); }
-.sidebar-logo span { font-size:11px; color:var(--text-secondary); display:block; }
-.sidebar-nav { flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:2px; }
+.sidebar-logo h2 {
+  font-size:15px; font-weight:650;
+  color:var(--color-content-primary);
+  letter-spacing:-0.011em; line-height:1.2;
+}
+.sidebar-logo span {
+  font-size:12px; font-weight:450;
+  color:var(--color-content-tertiary);
+  display:block; line-height:1.2;
+  margin-top:1px;
+}
+.sidebar-nav { flex:1; padding:12px; display:flex; flex-direction:column; gap:2px; }
 .nav-item {
-  display:flex; align-items:center; gap:10px; padding:10px 12px;
-  border-radius:var(--radius-sm); cursor:pointer; color:var(--text-secondary);
-  font-size:14px; font-weight:500; transition:all 0.15s; user-select:none;
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px;
+  border-radius:var(--corner-radius-m);
+  cursor:pointer;
+  color:var(--color-content-secondary);
+  font-size:14px; font-weight:650;
+  letter-spacing:-0.006em;
+  transition:background 150ms linear, color 150ms linear;
+  user-select:none;
+  position:relative;
 }
-.nav-item:hover { background:var(--bg-light); color:var(--text-main); }
-.nav-item.active { background:#EFFFF8 !important; color:var(--bolt-green) !important; border:none !important; font-weight:600; }
+.nav-item:hover {
+  background:var(--color-bg-neutral-secondary);
+  color:var(--color-content-primary);
+}
+.nav-item.active {
+  background:var(--color-bg-action-secondary) !important;
+  color:var(--color-content-action-primary) !important;
+  border:none !important;
+  font-weight:650;
+}
 .nav-item .icon { font-size:16px; width:20px; text-align:center; }
 .nav-badge {
-  margin-left:auto; background:var(--red); color:#fff;
-  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px;
+  margin-left:auto;
+  background:var(--color-bg-neutral-secondary);
+  color:var(--color-content-tertiary);
+  font-size:11px; font-weight:650;
+  padding:3px 8px;
+  border-radius:var(--corner-radius-full);
+  letter-spacing:0;
 }
-.nav-badge.green { background:var(--bolt-green); color:var(--bolt-dark); }
-.sidebar-user { padding:14px 20px; border-top:1px solid var(--border-color); }
-.sidebar-user .user-email { font-size:12px; color:var(--text-secondary); }
-.sidebar-user .logout-btn { font-size:12px; color:var(--text-muted); cursor:pointer; margin-top:4px; transition:color 0.15s; }
-.sidebar-user .logout-btn:hover { color:var(--red); }
+.nav-badge.green {
+  /* нагадування — синій pill з білим текстом, заміна старого зеленого */
+  background:var(--color-bg-action-primary);
+  color:#fff;
+}
+.nav-item.active .nav-badge {
+  /* в активному стані badge стає світлим з синім текстом */
+  background:var(--color-layer-floor-1);
+  color:var(--color-content-action-primary);
+}
+.sidebar-user { padding:14px 20px; border-top:1px solid var(--color-border-separator); }
+.sidebar-user .user-email { font-size:12px; color:var(--color-content-secondary); }
+.sidebar-user .logout-btn { font-size:12px; color:var(--color-content-tertiary); cursor:pointer; margin-top:4px; transition:color 0.15s; }
+.sidebar-user .logout-btn:hover { color:var(--color-bg-danger-primary); }
 
 /* ── MAIN ── */
 .main { flex:1; overflow-y:auto; padding:28px 32px; display:flex; flex-direction:column; }
@@ -1396,73 +1547,113 @@ body.dark .sidebar.collapsed .nav-badge {
 
 /* ── END COLLAPSIBLE ── */
 
-/* ── SIDEBAR OVERHAUL ── */
+/* ── SIDEBAR OVERHAUL — Kalep style ── */
 .sidebar {
   width:248px; min-width:248px;
-  background: var(--white) !important;
-  border-right: 1px solid var(--border-color) !important;
+  background: var(--color-layer-floor-1) !important;
+  border-right: 1px solid var(--color-border-separator) !important;
   display:flex; flex-direction:column;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.03);
+  box-shadow: none;
 }
 .sidebar-logo {
-  padding:22px 20px 18px;
+  height:76px; flex-shrink:0;
+  padding:0 22px;
   display:flex; align-items:center; gap:12px;
-  border-bottom:1px solid var(--border-color);
+  border-bottom:1px solid var(--color-border-separator);
 }
 .sidebar-logo .bolt-icon {
-  width:44px; height:44px; background:var(--bolt-green); border-radius:12px;
-  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:40px; height:40px;
+  background:var(--color-bg-action-primary);
+  border-radius:var(--corner-radius-m);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+  color:#fff;
 }
-.sidebar-logo h2 { font-size:20px; font-weight:800; color:var(--bolt-dark); line-height:1.1; }
-.sidebar-logo span { font-size:11px; color:var(--text-secondary); font-weight:500; }
+.sidebar-logo h2 {
+  font-size:15px; font-weight:650;
+  color:var(--color-content-primary);
+  line-height:1.2; letter-spacing:-0.011em;
+}
+.sidebar-logo span {
+  font-size:12px; font-weight:450;
+  color:var(--color-content-tertiary);
+  margin-top:1px; line-height:1.2;
+}
 
-.sidebar-nav { flex:1; padding:12px 10px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
+.sidebar-nav { flex:1; padding:12px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
 
 .nav-item {
-  display:flex; align-items:center; gap:11px;
-  padding:11px 14px; border-radius:12px;
-  cursor:pointer; color:var(--text-secondary);
-  font-size:14px; font-weight:500;
-  transition:all 0.15s; user-select:none;
-  border-left:3px solid transparent;
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px;
+  border-radius:var(--corner-radius-m);
+  cursor:pointer;
+  color:var(--color-content-secondary);
+  font-size:14px; font-weight:650;
+  letter-spacing:-0.006em;
+  transition:background 150ms linear, color 150ms linear;
+  user-select:none;
+  border-left:none;
+  position:relative;
 }
-.nav-item:hover { background:var(--bg-light); color:var(--text-main); }
+.nav-item:hover {
+  background:var(--color-bg-neutral-secondary);
+  color:var(--color-content-primary);
+}
 .nav-item.active {
-  background:#EFFFF8 !important; color:var(--bolt-green) !important;
-  border-left-color:var(--bolt-green) !important; font-weight:600;
+  background:var(--color-bg-action-secondary) !important;
+  color:var(--color-content-action-primary) !important;
+  border-left:none !important;
+  font-weight:650;
 }
 
-/* ── SIDEBAR BOTTOM ── */
-.sidebar-bottom { padding:10px; border-top:1px solid var(--border-color); }
+/* ── SIDEBAR BOTTOM — Kalep style ── */
+.sidebar-bottom { padding:12px; border-top:1px solid var(--color-border-separator); }
 .theme-toggle {
-  display:flex; align-items:center; gap:10px;
-  padding:10px 14px; margin-bottom:8px;
-  border-radius:10px; cursor:pointer;
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; margin-bottom:6px;
+  border-radius:var(--corner-radius-m); cursor:pointer;
   background:none; border:none; width:100%;
-  color:var(--text-secondary); font-family:'Inter',sans-serif;
-  font-size:13px; font-weight:500; transition:all 0.15s;
+  color:var(--color-content-secondary);
+  font-family:'Inter','InterVariable',sans-serif;
+  font-size:14px; font-weight:650;
+  letter-spacing:-0.006em;
+  transition:background 150ms linear, color 150ms linear;
 }
-.theme-toggle:hover { background:var(--bg-light); color:var(--text-main); }
+.theme-toggle:hover {
+  background:var(--color-bg-neutral-secondary);
+  color:var(--color-content-primary);
+}
 .sidebar-user {
   display:flex; align-items:center; gap:10px;
-  padding:10px 14px; border-radius:10px;
+  padding:10px 12px;
+  border-radius:var(--corner-radius-m);
 }
 .user-avatar-wrap { flex-shrink:0; }
 .avatar-fallback {
   width:36px; height:36px; border-radius:50%;
-  background:var(--bolt-green); color:#fff;
+  background:var(--color-bg-action-primary); color:#fff;
   display:flex; align-items:center; justify-content:center;
-  font-weight:700; font-size:14px;
+  font-weight:650; font-size:14px;
 }
 .user-info { flex:1; min-width:0; }
-.user-name { font-size:13px; font-weight:700; color:var(--bolt-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.user-role { font-size:11px; color:var(--text-secondary); }
+.user-name {
+  font-size:13px; font-weight:650;
+  color:var(--color-content-primary);
+  letter-spacing:-0.006em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.user-role { font-size:12px; font-weight:450; color:var(--color-content-tertiary); }
 .logout-icon-btn {
-  background:none; border:none; cursor:pointer; padding:6px;
-  color:var(--text-muted); border-radius:8px; transition:all 0.15s;
+  background:none; border:none; cursor:pointer; padding:8px;
+  color:var(--color-content-tertiary);
+  border-radius:var(--corner-radius-s);
+  transition:background 150ms linear, color 150ms linear;
   display:flex; align-items:center;
 }
-.logout-icon-btn:hover { background:rgba(255,94,94,0.08); color:var(--red); }
+.logout-icon-btn:hover {
+  background:var(--color-bg-danger-secondary);
+  color:var(--color-bg-danger-primary);
+}
 
 /* ── DASHBOARD LAYOUT ── */
 .dash-header {
@@ -2565,8 +2756,8 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
     <div class="login-logo">
       <div class="bolt-icon">⚡</div>
       <div>
-        <h1>Bolt Food CRM</h1>
-        <span data-i18n="auth.subtitle">Sales Manager Portal</span>
+        <h1>Food Tech</h1>
+        <span data-i18n="auth.subtitle">Sales Portal</span>
       </div>
     </div>
 
@@ -2611,7 +2802,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
       </div>
       <div class="sidebar-logo-text">
         <div class="logo-title-row">
-          <h2>Bolt Food</h2>
+          <h2>Food Tech</h2>
           <!-- Кнопка згортання тепер стоїть прямо біля назви — утворює смислову пару. -->
           <button class="sidebar-collapse-btn" onclick="toggleSidebar()" id="sidebarCollapseBtn" title="Згорнути панель">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -2909,7 +3100,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
           <div class="tool-hub-card" onclick="openTool('potential')">
             <div class="tool-hub-icon">📊</div>
             <div class="tool-hub-title">Калькулятор потенціалу партнера</div>
-            <div class="tool-hub-desc">Оцінка очікуваних замовлень та GMV партнера на Bolt Food на основі даних про ринок та конкурента у місті.</div>
+            <div class="tool-hub-desc">Оцінка очікуваних замовлень та GMV партнера на нашій платформі на основі даних про ринок та конкурента у місті.</div>
             <div class="tool-hub-cta">Відкрити →</div>
           </div>
           <div class="tool-hub-card" style="opacity:0.55;cursor:not-allowed;" onclick="showToast('Скоро', 'success')">
@@ -2937,7 +3128,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
         <div class="page-header" style="margin-bottom:18px;">
           <div>
             <h1>Калькулятор потенціалу партнера</h1>
-            <p>Розрахунок очікуваних замовлень та GMV на платформі Bolt Food</p>
+            <p>Розрахунок очікуваних замовлень та GMV на нашій платформі</p>
           </div>
         </div>
 
@@ -2963,7 +3154,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
               <div class="calc-group-title">Частки ринку у місті</div>
               <div class="calc-field-row">
                 <div class="calc-field">
-                  <div class="f-label">Bolt Food</div>
+                  <div class="f-label">Наша платформа</div>
                   <div class="input-with-suffix">
                     <input class="f-input" id="cpBoltShare" type="number" min="0" max="100" step="0.1" value="27" oninput="calcRender()">
                     <span class="input-suffix">%</span>
@@ -2996,9 +3187,9 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
             </div>
 
             <div class="calc-group">
-              <div class="calc-group-title">Bolt Food</div>
+              <div class="calc-group-title">Наша платформа</div>
               <div class="calc-field">
-                <div class="f-label">Середній чек на платформі Bolt Food</div>
+                <div class="f-label">Середній чек на нашій платформі</div>
                 <div class="input-with-suffix">
                   <input class="f-input" id="cpBoltAOV" type="number" min="0" step="0.01" placeholder="Наприклад: 16.67" oninput="calcRender()">
                   <span class="input-suffix">€/$</span>
@@ -3028,7 +3219,7 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
                 <label onclick="calcToggleShowCompetitor()">📈 Показувати блок конкурента</label>
                 <div class="multiapp-toggle-switch on" id="cpShowCompSwitch" onclick="calcToggleShowCompetitor()"></div>
               </div>
-              <div class="calc-hint" style="margin-top:8px;">Вимкніть, щоб у звіті та PDF залишилась лише інформація про потенціал Bolt Food — зручно для презентації партнеру.</div>
+              <div class="calc-hint" style="margin-top:8px;">Вимкніть, щоб у звіті та PDF залишилась лише інформація про потенціал на нашій платформі — зручно для презентації партнеру.</div>
             </div>
 
             <div class="calc-actions">
@@ -3764,7 +3955,7 @@ const TRANSLATIONS = {
     // ── Login / Register screen ──
     'auth.tabLogin':       'Вхід',
     'auth.tabRegister':    'Реєстрація',
-    'auth.subtitle':       'Sales Manager Portal',
+    'auth.subtitle':       'Sales Portal',
     'auth.email':          'Email',
     'auth.password':       'Пароль',
     'auth.name':           'Імʼя',
@@ -3947,7 +4138,7 @@ const TRANSLATIONS = {
     // ── Login / Register screen ──
     'auth.tabLogin':       'Sign in',
     'auth.tabRegister':    'Sign up',
-    'auth.subtitle':       'Sales Manager Portal',
+    'auth.subtitle':       'Sales Portal',
     'auth.email':          'Email',
     'auth.password':       'Password',
     'auth.name':           'Name',
@@ -6695,7 +6886,7 @@ function buildGCalUrl(title, details, dateStr, timeStr) {
 // partnerName — для заголовку, task — для заголовку та деталей, dateStr+timeStr — час.
 function openInGoogleCalendar(partnerName, task, dateStr, timeStr) {
   var title = partnerName + ' — ' + task;
-  var details = 'Задача по партнеру Bolt Food CRM\n\nПартнер: ' + partnerName + '\nЗадача: ' + task;
+  var details = 'Задача по партнеру Food Tech Sales Portal\n\nПартнер: ' + partnerName + '\nЗадача: ' + task;
   var url = buildGCalUrl(title, details, dateStr, timeStr);
   try {
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -7365,7 +7556,7 @@ function exportXLSX() {
   const ws2 = XLSX.utils.json_to_sheet(statRows);
   XLSX.utils.book_append_sheet(wb, ws2, 'Статистика');
 
-  const fname = `BoltCRM_${today}.xlsx`;
+  const fname = `FoodTechCRM_${today}.xlsx`;
   XLSX.writeFile(wb, fname);
   showToast(`Файл ${fname} завантажено ✓`, 'success');
 }
@@ -7549,12 +7740,12 @@ function calcValidateShares(boltShare, compShare) {
     hintEl.classList.add('err');
     hintEl.textContent = '⚠ Сума часток ' + calcFmt(sum, 1) + '% > 100%. Перевірте дані.';
   } else if (sum <= 0) {
-    hintEl.textContent = 'Введіть частки ринку. Bolt Food і конкурент.';
+    hintEl.textContent = 'Введіть частки ринку. Наша платформа і конкурент.';
   } else if (sum < 99.99) {
     hintEl.classList.add('warn');
     hintEl.textContent = 'Сума ' + calcFmt(sum, 1) + '%. Решта ' + calcFmt(100-sum, 1) + '% — інші гравці (Wolt, Rocket тощо).';
   } else {
-    hintEl.textContent = '✓ Bolt Food і конкурент разом покривають весь ринок.';
+    hintEl.textContent = '✓ Наша платформа і конкурент разом покривають весь ринок.';
   }
 }
 
@@ -7664,7 +7855,7 @@ function calcRender() {
   const heroHtml = ''
     + '<div class="calc-hero">'
     + '  <div>'
-    + '    <div class="calc-hero-label">Прогноз замовлень на Bolt Food / місяць</div>'
+    + '    <div class="calc-hero-label">Прогноз замовлень / місяць</div>'
     + '    <div class="calc-hero-val">' + calcFmt(r.bolt.orders_month) + '</div>'
     + '    <div class="calc-hero-sub">' + calcFmt(r.bolt.orders_per_loc_day, 1) + ' замовлень / локацію / день &nbsp;·&nbsp; '
     + calcFmt(r.bolt.orders_per_loc_month) + ' / локацію / місяць</div>'
@@ -7677,7 +7868,7 @@ function calcRender() {
 
   const boltBlockHtml = ''
     + '<div class="calc-card-block">'
-    + '  <div class="calc-section-title"><span class="csi">⚡</span>Прогноз для партнера на Bolt Food</div>'
+    + '  <div class="calc-section-title"><span class="csi">⚡</span>Прогноз для партнера на нашій платформі</div>'
     + '  <div class="calc-metric-grid">'
     + calcMetric('Замовлень / день', calcFmt(r.bolt.orders_per_loc_day * inp.locs, 1), 'на ' + inp.locs + ' ' + calcPluralLocs(inp.locs), 'accent')
     + calcMetric('Замовлень / місяць', calcFmt(r.bolt.orders_month), '', 'accent')
@@ -7817,7 +8008,7 @@ async function calcExportPDF() {
   const dateStr = new Date().toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const stamp = document.createElement('div');
   stamp.className = 'pdf-date-stamp';
-  stamp.textContent = 'Bolt Food CRM · Калькулятор потенціалу партнера · ' + dateStr;
+  stamp.textContent = 'Food Tech Sales Portal · Калькулятор потенціалу партнера · ' + dateStr;
   resultsEl.insertBefore(stamp, resultsEl.firstChild);
 
   // Даємо браузеру застосувати CSS
@@ -7955,7 +8146,7 @@ function createBackup() {
   const a = document.createElement('a');
   const date = new Date().toISOString().split('T')[0];
   a.href = url;
-  a.download = 'BoltCRM_backup_' + date + '.bfcrm';
+  a.download = 'FoodTechCRM_backup_' + date + '.bfcrm';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

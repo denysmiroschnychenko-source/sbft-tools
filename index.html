@@ -3672,6 +3672,29 @@ body.dark .calc-section-title .csi { background:#0D0D14; }
   </div>
 </div>
 
+<!-- OVERDUE PARTNERS MODAL -->
+<!-- Відкривається при кліку на картку "Прострочено контактів" на головній.
+     Показує список партнерів з простроченим nextContact (< сьогодні).
+     Стилі переюзуємо ті самі що у weekly-activated, але через CSS-клас .overdue —
+     щоб бейджик і дата були в червоних тонах. -->
+<div class="modal-overlay" id="overdueModal">
+  <div class="modal" style="width:540px;">
+    <div class="modal-header">
+      <div>
+        <h2 style="display:flex;align-items:center;gap:10px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Прострочені контакти
+        </h2>
+        <p>Партнери, з якими треба було звʼязатись до сьогодні</p>
+      </div>
+      <button class="modal-close" onclick="closeModal('overdueModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="overdueList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- PARTNER DETAIL MODAL -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal detail-modal">
@@ -4587,7 +4610,12 @@ function renderToday() {
   const counts = {};
   Object.keys(STATUS_LABELS).forEach(function(s) { counts[s] = 0; });
   partners.forEach(function(p) { if (counts[p.status] !== undefined) counts[p.status]++; });
-  const overdueN = partners.filter(function(p) { return p.nextContact && p.nextContact < today; }).length;
+  // Прострочені — окремий масив об'єктів (а не тільки count), щоб одночасно
+  // показати число у картці І мати готовий список для popover при кліку на неї.
+  const overduePartners = partners.filter(function(p) { return p.nextContact && p.nextContact < today; });
+  const overdueN = overduePartners.length;
+  // Зберігаємо у глобалі — звідти showOverdueModal() візьме список при кліку.
+  window._overduePartners = overduePartners;
   const todayN   = partners.filter(function(p) { return p.nextContact === today; }).length;
 
   updateTodayBadge();
@@ -4602,10 +4630,16 @@ function renderToday() {
     meta.innerHTML = '';
   }
 
-  // Обчислюємо тижневий приріст: скільки партнерів отримали статус "Партнер (активний)"
-  // за останні 7 днів. Шукаємо у timeline активностей кожного партнера запис
-  // зі statusChange.to === 'active' за цей період — це і є момент "закриття угоди".
-  // Партнерів, які вже були 'active' до цього тижня, не враховуємо — це саме НОВІ активації.
+  // Обчислюємо тижневий приріст: скільки партнерів стали "Партнер (активний)"
+  // за останні 7 днів. Враховуємо ОБИДВА сценарії:
+  //  (А) Зміна статусу: знаходимо у timeline активність з statusChange.to === 'active'
+  //      за цей період — це працює для змін через "Активності", "Редагувати",
+  //      картку партнера, а також через "Перша активність" у формі нового партнера.
+  //  (Б) Створення відразу як active: партнерів, чий поточний status === 'active'
+  //      і createdAt за останні 7 днів, у яких немає попередніх statusChange.to ===
+  //      'active' активностей (тобто партнера створили вже активним і не "перевели"
+  //      явно — це теж активація з точки зору бізнесу).
+  // Партнерів, які стали 'active' до цього тижня, не враховуємо — це саме НОВІ активації.
   var weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
   var weekAgoDate = new Date(weekAgoMs).toISOString();
   var newThisWeek = 0;
@@ -4615,20 +4649,40 @@ function renderToday() {
   for (var pi = 0; pi < partners.length; pi++) {
     var pp = partners[pi];
     var acts = getActivities(pp.id);
-    // Шукаємо першу активацію за цей тиждень (перебір з кінця — знаходимо найсвіжіший запис)
+
+    // (А) Шукаємо явну зміну статусу на 'active' у timeline за останні 7 днів.
+    // Перебираємо з кінця, аби знайти найсвіжіший запис.
+    var activatedAt = '';
     for (var ai = acts.length - 1; ai >= 0; ai--) {
       var a = acts[ai];
       if (a.statusChange && a.statusChange.to === 'active'
           && a.createdAt && a.createdAt >= weekAgoDate) {
-        newThisWeek++;
-        newActivatedPartners.push({
-          id: pp.id,
-          name: pp.name,
-          city: pp.city || '',
-          activatedAt: a.createdAt
-        });
-        break; // одна активація на партнера достатньо — інакше подвійний відлік
+        activatedAt = a.createdAt;
+        break;
       }
+    }
+
+    // (Б) Якщо явної зміни немає, але партнер ЗАРАЗ active і створений за тиждень —
+    // це теж активація. Перевіряємо що НЕ було попередніх явних активацій
+    // (інакше може бути циклічний кейс decline→active→decline→active за тиждень).
+    if (!activatedAt && pp.status === 'active'
+        && pp.createdAt && pp.createdAt >= weekAgoDate) {
+      var hasAnyExplicitActivation = acts.some(function(a) {
+        return a.statusChange && a.statusChange.to === 'active';
+      });
+      if (!hasAnyExplicitActivation) {
+        activatedAt = pp.createdAt;
+      }
+    }
+
+    if (activatedAt) {
+      newThisWeek++;
+      newActivatedPartners.push({
+        id: pp.id,
+        name: pp.name,
+        city: pp.city || '',
+        activatedAt: activatedAt
+      });
     }
   }
   // Сортуємо за датою активації — найсвіжіші нагорі
@@ -4656,7 +4710,10 @@ function renderToday() {
       icon: iconClock,
       hint: overdueN > 0
             ? (currentLang === 'en' ? 'need attention today' : 'потребують уваги сьогодні')
-            : (currentLang === 'en' ? 'everything on track' : 'усе під контролем')
+            : (currentLang === 'en' ? 'everything on track' : 'усе під контролем'),
+      // Клік відкриває модалку зі списком прострочених. Активний тільки коли список не порожній —
+      // інакше клік нічого не зробив би і виглядав би глухим.
+      onClick: overdueN > 0 ? 'showOverdueModal()' : null
     },
     {
       label: t('home.statsWeeklyGrowth'),
@@ -4750,6 +4807,73 @@ function showWeeklyActivatedModal() {
   }).join('');
 
   openModal('weeklyActivatedModal');
+}
+
+// ── OVERDUE PARTNERS MODAL ──────────────────────────────────────
+// Відкриває модалку зі списком партнерів, у яких nextContact < сьогодні.
+// Працює аналогічно showWeeklyActivatedModal — той самий патерн,
+// дані беруться з window._overduePartners (наповнюється в renderToday).
+// Якщо overdueN === 0, картка не клікабельна, тож сюди не зайдемо взагалі.
+function showOverdueModal() {
+  var list = window._overduePartners || [];
+  var container = document.getElementById('overdueList');
+  if (!container) return;
+
+  if (list.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">'
+      + '<div style="font-size:42px;margin-bottom:12px;opacity:0.4;">✅</div>'
+      + '<p>Усе під контролем — прострочених немає</p>'
+      + '</div>';
+    openModal('overdueModal');
+    return;
+  }
+
+  // Сортуємо за датою nextContact ASCENDING — найдавніші прострочення зверху,
+  // щоб менеджер бачив першими тих, кого закинули найдовше тому.
+  var sorted = list.slice().sort(function(a, b) {
+    return (a.nextContact || '').localeCompare(b.nextContact || '');
+  });
+
+  var todayStr = new Date().toISOString().split('T')[0];
+
+  // Інлайн-стилі (як в інших модалках цього файлу) — щоб не залежати від глобальних
+  // CSS-класів і працювати і в світлій, і в темній темі через CSS-змінні.
+  container.innerHTML = sorted.map(function(p) {
+    // Скільки днів простроку
+    var daysOverdue = '';
+    if (p.nextContact) {
+      var diffMs = new Date(todayStr).getTime() - new Date(p.nextContact).getTime();
+      var diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+      if (diffDays === 1) daysOverdue = '1 день тому';
+      else if (diffDays < 5) daysOverdue = diffDays + ' дн. тому';
+      else daysOverdue = diffDays + ' дн. тому';
+    }
+    return '<div onclick="closeModal(\'overdueModal\'); openDetail(\'' + p.id + '\');" '
+      + '     style="display:flex;align-items:center;gap:12px;padding:12px 14px;'
+      + '            background:var(--color-layer-floor-1);'
+      + '            border:1px solid var(--color-border-separator);'
+      + '            border-radius:var(--corner-radius-m);cursor:pointer;'
+      + '            transition:background 150ms linear,border-color 150ms linear;" '
+      + '     onmouseover="this.style.background=\'var(--color-bg-neutral-secondary)\';this.style.borderColor=\'var(--color-bg-danger-primary)\';" '
+      + '     onmouseout="this.style.background=\'var(--color-layer-floor-1)\';this.style.borderColor=\'var(--color-border-separator)\';">'
+      + '  <div style="width:36px;height:36px;border-radius:50%;'
+      + '              background:var(--color-bg-danger-secondary);color:var(--color-bg-danger-primary);'
+      + '              display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;">⏰</div>'
+      + '  <div style="flex:1;min-width:0;">'
+      + '    <div style="font-weight:650;color:var(--color-content-primary);font-size:14px;'
+      + '                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(p.name || 'Партнер') + '</div>'
+      + '    <div style="font-size:12px;color:var(--color-content-tertiary);margin-top:2px;">' + escHtml(p.city || '—')
+      +        (p.status && STATUS_LABELS[p.status] ? ' · ' + escHtml(STATUS_LABELS[p.status]) : '') + '</div>'
+      + '  </div>'
+      + '  <div style="text-align:right;flex-shrink:0;">'
+      + '    <div style="font-weight:650;color:var(--color-bg-danger-primary);font-size:13px;'
+      + '                font-variant-numeric:tabular-nums;">' + (p.nextContact || '—') + '</div>'
+      + '    <div style="font-size:11px;color:var(--color-content-tertiary);margin-top:2px;">' + daysOverdue + '</div>'
+      + '  </div>'
+      + '</div>';
+  }).join('');
+
+  openModal('overdueModal');
 }
 
 // ── FUNNEL DETAILS PANEL ──────────────────────────────────────
@@ -6514,7 +6638,10 @@ function savePartner() {
     partners.push(newPartner);
 
     // Створюємо першу активність, якщо заповнений блок "Перша активність"
-    // АБО якщо є коментар (для зворотної сумісності зі старою поведінкою).
+    // АБО якщо є коментар (для зворотної сумісності зі старою поведінкою),
+    // АБО якщо партнер створений відразу як 'active' (щоб залишити слід у timeline
+    // і коректно зарахувати у метрику "Приріст за тиждень").
+    var createdAsActive = (finalStatus === 'active');
     if (hasFirstActivity) {
       const acts = getActivities(id);
       const firstAct = {
@@ -6529,6 +6656,11 @@ function savePartner() {
       // from: baseStatus (як вибрано в основній формі), to: actNewStat (що обрано в блоці активності).
       if (actNewStat && actNewStat !== baseStatus) {
         firstAct.statusChange = { from: baseStatus, to: actNewStat };
+      } else if (createdAsActive) {
+        // Партнер створений відразу як активний (без зміни статусу в "Перша активність").
+        // Зафіксуємо це теж, щоб метрики бачили активацію.
+        firstAct.statusChange = { from: '', to: 'active' };
+        firstAct.source = 'created-as-active';
       }
       acts.push(firstAct);
       saveActivities(id, acts);
@@ -6537,6 +6669,22 @@ function savePartner() {
       if (actGcal && actTask && actNextDate) {
         openInGoogleCalendar(name, actTask, actNextDate, actNextTime);
       }
+    } else if (createdAsActive) {
+      // Немає блоку "Перша активність", але партнера створили відразу як активного —
+      // створюємо технічну активність з statusChange, щоб метрика "Приріст за тиждень"
+      // і інша аналітика по воронці підхопили цю активацію.
+      const acts = getActivities(id);
+      acts.push({
+        id: 'a_' + Date.now(),
+        note: comment || '',
+        task: '',
+        createdAt: new Date().toISOString(),
+        nextDate: '',
+        nextTime: '',
+        statusChange: { from: '', to: 'active' },
+        source: 'created-as-active'
+      });
+      saveActivities(id, acts);
     } else if (comment) {
       // Fallback: якщо немає активності, але є коментар — створюємо "нотатку"
       // (стара поведінка, щоб не ламати кейс "додав партнера + короткий коментар").
